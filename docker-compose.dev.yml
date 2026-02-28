@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:16
+    container_name: project-db-dev
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${EXTERNAL_DB_PORT}:${INTERNAL_DB_PORT}"
+    volumes:
+      - db_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: dev
+    container_name: project-api-dev
+    environment:
+      DATABASE_URL: "postgresql://${DB_USER}:${DB_PASSWORD}@db:${INTERNAL_DB_PORT}/${DB_NAME}?schema=public"
+      NODE_ENV: ${NODE_ENV}
+      PORT: ${INTERNAL_PORT}
+      HOST: 0.0.0.0
+      SESSION_SECRET: ${SESSION_SECRET}
+      DEFAULT_USER: ${DEFAULT_USER}
+      DEFAULT_PASSWORD: ${DEFAULT_PASSWORD}
+      DEFAULT_EMAIL: ${DEFAULT_EMAIL}
+    depends_on:
+      db:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8085:4000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/api/node_modules
+      - /app/apps/web/node_modules
+      - /app/packages/database/node_modules
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: dev
+    container_name: project-web-dev
+    environment:
+      VITE_API_URL: http://localhost:8085
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/web/node_modules
+
+volumes:
+  db_data_dev:
