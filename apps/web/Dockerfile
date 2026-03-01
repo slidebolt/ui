@@ -1,20 +1,20 @@
 FROM node:22-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
-COPY . /app
-WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.28.1 --activate
 
-FROM base AS dev
-RUN pnpm install
-EXPOSE 3000
-CMD ["pnpm", "--filter", "web", "dev", "--host"]
-
+# ── build ─────────────────────────────────────────────────────────────────────
 FROM base AS build
-RUN pnpm install
+WORKDIR /app
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY apps/web/package.json ./apps/web/
+RUN pnpm install --frozen-lockfile
+COPY apps/web ./apps/web
 RUN pnpm --filter web build
 
-FROM nginx:alpine AS prod
+# ── prod: nginx serving static files ─────────────────────────────────────────
+FROM nginx:1.27-alpine AS prod
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
-EXPOSE 80
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 40003
 CMD ["nginx", "-g", "daemon off;"]

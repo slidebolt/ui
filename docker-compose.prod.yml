@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:16
+    container_name: slidebolt-ui-db
+    network_mode: host
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - /media/gavin/storage1tb/containers/slidebolt-ui/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    image: ghcr.io/slidebolt/ui-api:latest
+    container_name: slidebolt-ui-api
+    network_mode: host
+    env_file: .env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.slidebolt-api.rule=Host(`smarthome.357graphics.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.slidebolt-api.entrypoints=websecure"
+      - "traefik.http.routers.slidebolt-api.tls=true"
+      - "traefik.http.routers.slidebolt-api.priority=100"
+      - "traefik.http.services.slidebolt-api.loadbalancer.server.port=40001"
+
+  web:
+    image: ghcr.io/slidebolt/ui-web:latest
+    container_name: slidebolt-ui-web
+    network_mode: host
+    depends_on:
+      - api
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.slidebolt-web.rule=Host(`smarthome.357graphics.com`)"
+      - "traefik.http.routers.slidebolt-web.entrypoints=websecure"
+      - "traefik.http.routers.slidebolt-web.tls=true"
+      - "traefik.http.services.slidebolt-web.loadbalancer.server.port=40003"
