@@ -1,12 +1,13 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { 
   Typography, Box, Card, CardContent, Grid, 
   CircularProgress, Breadcrumbs, Button
 } from '@mui/material';
 import { Cpu, ChevronRight } from 'lucide-react';
+import { LabelEditor } from '../components/LabelEditor';
 
 interface Device {
   id: string;
@@ -14,10 +15,12 @@ interface Device {
   model?: string;
   manufacturer?: string;
   plugin_id: string;
+  labels?: Record<string, string>;
 }
 
 const Devices: React.FC = () => {
   const { pluginId } = useParams<{ pluginId: string }>();
+  const queryClient = useQueryClient();
 
   const { data: devices, isLoading, error } = useQuery<Device[]>({
     queryKey: ['devices', pluginId],
@@ -53,17 +56,33 @@ const Devices: React.FC = () => {
         {devices?.map((device) => (
           <Grid item xs={12} md={6} lg={4} key={device.id}>
             <Card>
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={2} mb={2}>
+              <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Box display="flex" alignItems="center" gap={2}>
                   <Cpu className="text-purple-500" />
                   <Typography variant="h6">{device.name}</Typography>
                 </Box>
                 <Typography variant="body2" color="textSecondary">
                   Model: {device.model || 'Unknown'}
                 </Typography>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="textSecondary">
                   ID: {device.id}
                 </Typography>
+                <Box>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
+                    Labels
+                  </Typography>
+                  <LabelEditor
+                    labels={device.labels}
+                    onSave={async (labels) => {
+                      await axios.put(`/api/plugins/${pluginId}/devices`, { 
+                        id: device.id,
+                        local_name: device.name,
+                        labels 
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['devices', pluginId] });
+                    }}
+                  />
+                </Box>
                 <Button 
                   component={Link} 
                   to={`/plugins/${pluginId}/devices/${device.id}/entities`}

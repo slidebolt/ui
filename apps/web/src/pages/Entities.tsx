@@ -9,6 +9,7 @@ import {
 import {
   Zap, ToggleLeft, Radio, Cpu, Calendar, Clock, Camera, DoorOpen, Settings,
 } from 'lucide-react';
+import { LabelEditor } from '../components/LabelEditor';
 
 interface EntityData {
   effective?: {
@@ -38,6 +39,7 @@ interface Entity {
   schema?: {
     commands?: Array<{ action: string; fields?: any[] }>;
   };
+  labels?: Record<string, string>;
 }
 
 function domainIcon(domain: string) {
@@ -213,10 +215,12 @@ function EntityCard({
   entity,
   pluginId,
   deviceId,
+  onLabelsUpdate,
 }: {
   entity: Entity;
   pluginId: string;
   deviceId: string;
+  onLabelsUpdate?: () => void;
 }) {
   const [error, setError] = useState<string | undefined>();
 
@@ -252,12 +256,28 @@ function EntityCard({
 
   return (
     <Card variant="outlined">
-      <CardContent sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
-        <Box display="flex" alignItems="flex-start" gap={1.5}>
+      <CardContent sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+        <Box display="flex" alignItems="flex-start" gap={1.5} flexGrow={1}>
           {domainIcon(entity.domain)}
-          <Box>
+          <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle2">{entity.local_name || entity.id}</Typography>
             <Typography variant="caption" color="textSecondary">{entity.domain}</Typography>
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>
+                Labels
+              </Typography>
+              <LabelEditor
+                labels={entity.labels}
+                onSave={async (labels) => {
+                  await axios.put(`/api/plugins/${pluginId}/devices/${deviceId}/entities`, { 
+                    id: entity.id,
+                    local_name: entity.local_name || entity.id,
+                    labels 
+                  });
+                  onLabelsUpdate?.();
+                }}
+              />
+            </Box>
           </Box>
         </Box>
         <Box display="flex" alignItems="center">
@@ -272,7 +292,7 @@ function EntityCard({
 const Entities: React.FC = () => {
   const { pluginId, deviceId } = useParams<{ pluginId: string; deviceId: string }>();
 
-  const { data: entities, isLoading, error } = useQuery<Entity[]>({
+  const { data: entities, isLoading, error, refetch } = useQuery<Entity[]>({
     queryKey: ['entities', deviceId],
     queryFn: async () => {
       try {
@@ -310,7 +330,12 @@ const Entities: React.FC = () => {
       <Grid container spacing={2}>
         {entities?.filter(e => e.domain !== 'config').map((entity) => (
           <Grid item xs={12} key={entity.id}>
-            <EntityCard entity={entity} pluginId={pluginId!} deviceId={deviceId!} />
+            <EntityCard
+              entity={entity}
+              pluginId={pluginId!}
+              deviceId={deviceId!}
+              onLabelsUpdate={() => refetch()}
+            />
           </Grid>
         ))}
         {entities?.filter(e => e.domain !== 'config').length === 0 && (
