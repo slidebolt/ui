@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16
+    container_name: project-db-local
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-slidebolt}
+    ports:
+      - "${EXTERNAL_DB_PORT:-5432}:${INTERNAL_DB_PORT:-5432}"
+    volumes:
+      - db_data_local:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-slidebolt}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # Allow connections from host
+    networks:
+      - local_network
+
+networks:
+  local_network:
+    driver: bridge
+
+volumes:
+  db_data_local:

@@ -6,12 +6,16 @@ import * as dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import { createDb, users, eq } from '@repo/database';
 import { healthRoutes } from './routes/health.js';
+import { userRoutes } from './routes/users.js';
+import { roleRoutes } from './routes/roles.js';
+import { seedSystemDefaults } from './seed.js';
+import { rbacHook } from './middleware/rbac.js';
 
 dotenv.config();
 
 declare module 'fastify' {
   interface Session {
-    user: { id: number; username: string };
+    user: { id: string; username: string };
   }
 }
 
@@ -42,37 +46,19 @@ export async function buildApp(): Promise<FastifyInstance> {
     cookie: { secure: false },
   });
 
-  // Proxy helper for internal service
-  const INTERNAL_SERVICE_URL = process.env.NODE_ENV === 'development' 
-    ? 'http://host.docker.internal:39011' 
-    : 'http://127.0.0.1:39011';
+  const INTERNAL_SERVICE_URL = process.env.INTERNAL_SERVICE_URL ||
+    (process.env.NODE_ENV === 'development'
+      ? 'http://localhost:39011'
+      : 'http://127.0.0.1:39011');
 
-  // Sync Default User
-  const syncDefaultUser = async () => {
-    const username = process.env.DEFAULT_USER || 'admin';
-    const password = process.env.DEFAULT_PASSWORD || 'admin';
-    const email = process.env.DEFAULT_EMAIL || 'admin@example.com';
+  // Seed system roles + users on every startup
+  try {
+    await seedSystemDefaults(db, msg => fastify.log.info(msg));
+  } catch (err) {
+    fastify.log.error(`Failed to seed system defaults: ${err}`);
+  }
 
-    try {
-      const [existingUser] = await db.select().from(users).where(eq(users.username, username)).limit(1);
-      if (!existingUser) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await db.insert(users).values({
-          username,
-          password: hashedPassword,
-          email,
-          name: 'Default Admin',
-        });
-        fastify.log.info(`Default user ${username} created.`);
-      }
-    } catch (err) {
-      fastify.log.error(`Failed to sync default user: ${err}`);
-    }
-  };
-
-  await syncDefaultUser();
-
-  // Auth Routes
+  // Auth Routes (public — no RBAC)
   fastify.post('/api/login', async (request, reply) => {
     const { username, password } = request.body as any;
     const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
@@ -100,28 +86,41 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Register Routes
   await fastify.register(healthRoutes, { prefix: '/api' });
 
-  // Proxy routes with Auth check
-  const proxyPaths = ['/api/plugins*', '/api/search*', '/api/schema*', '/api/batch*', '/api/journal*', '/api/labels*'];
-  
-  proxyPaths.forEach(path => {
-    fastify.all(path, async (request, reply) => {
-      if (!request.session.user) {
-        return reply.code(401).send({ error: 'Authentication required' });
-      }
+  // User + Role management (RBAC-protected: manage:User / manage:Role)
+  const rbac = rbacHook(db);
+  await fastify.register(userRoutes, { prefix: '/api', db });
+  await fastify.register(roleRoutes, { prefix: '/api', db });
 
+  // Apply RBAC preHandler to all /api/users* and /api/roles* routes
+  fastify.addHook('preHandler', async (request, reply) => {
+    if (request.url.startsWith('/api/users') || request.url.startsWith('/api/roles')) {
+      await rbac(request, reply);
+    }
+  });
+
+  // Proxy routes (RBAC-enforced)
+  const proxyPaths = ['/api/plugins*', '/api/search*', '/api/schema*', '/api/batch*', '/api/journal*', '/api/labels*'];
+
+  proxyPaths.forEach(path => {
+    fastify.all(path, { preHandler: rbac }, async (request, reply) => {
       const url = `${INTERNAL_SERVICE_URL}${request.url}`;
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+
         const fetchOptions: RequestInit = {
           method: request.method,
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
         };
 
-        if (['POST', 'PUT', 'PATCH'].includes(request.method) && request.body) {
+        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && request.body) {
           fetchOptions.body = JSON.stringify(request.body);
         }
 
         const response = await fetch(url, fetchOptions);
-        
+        clearTimeout(timeout);
+
         if (!response.ok) {
           const errorText = await response.text();
           fastify.log.error(`Internal service error (${path}): ${response.status} ${errorText}`);
@@ -132,9 +131,9 @@ export async function buildApp(): Promise<FastifyInstance> {
         return reply.code(response.status).send(data);
       } catch (err) {
         fastify.log.error(`Proxy failure (${path}): ${err instanceof Error ? err.message : String(err)}`);
-        return reply.code(500).send({ 
-          error: 'Failed to connect to internal gateway', 
-          message: err instanceof Error ? err.message : String(err) 
+        return reply.code(500).send({
+          error: 'Failed to connect to internal gateway',
+          message: err instanceof Error ? err.message : String(err),
         });
       }
     });
@@ -142,9 +141,9 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   fastify.get('/api/info', async () => {
     return {
-      name: "AI Plugin Gateway",
-      description: "Unified interface for Plugin, Device, and Entity management.",
-      version: "1.0.0"
+      name: 'AI Plugin Gateway',
+      description: 'Unified interface for Plugin, Device, and Entity management.',
+      version: '1.0.0',
     };
   });
 
