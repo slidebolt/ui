@@ -35,6 +35,8 @@ COPY packages/database/drizzle.config.ts ./packages/database/drizzle.config.ts
 COPY packages/database/src ./packages/database/src
 
 ENV NODE_ENV=production
+ARG VERSION=dev
+ENV APP_VERSION=$VERSION
 WORKDIR /app/apps/api
 EXPOSE 40001
 # Apply SQL migrations then start server

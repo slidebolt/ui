@@ -10,6 +10,8 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/web/package.json ./apps/web/
 RUN pnpm install --frozen-lockfile
 COPY apps/web ./apps/web
+ARG VERSION=dev
+ENV VITE_APP_VERSION=$VERSION
 RUN pnpm --filter web build
 
 # ── prod: nginx serving static files ─────────────────────────────────────────

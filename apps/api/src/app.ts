@@ -140,10 +140,19 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   fastify.get('/api/info', async () => {
+    let coreVersion = 'unknown';
+    try {
+      const res = await fetch(`${INTERNAL_SERVICE_URL}/_internal/runtime`);
+      if (res.ok) {
+        const runtime = await res.json() as any;
+        coreVersion = runtime.version || 'unknown';
+      }
+    } catch {}
     return {
-      name: 'AI Plugin Gateway',
+      name: 'SlideBolt',
       description: 'Unified interface for Plugin, Device, and Entity management.',
-      version: '1.0.0',
+      version: process.env.APP_VERSION || 'dev',
+      coreVersion,
     };
   });
 

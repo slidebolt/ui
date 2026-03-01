@@ -7,6 +7,7 @@ interface AppInfo {
   name: string;
   description: string;
   version: string;
+  coreVersion: string;
 }
 
 const Settings: React.FC = () => {
@@ -32,7 +33,7 @@ const Settings: React.FC = () => {
               id="appName"
               label="Application Name"
               name="appName"
-              defaultValue={data?.name || 'AI Template React'}
+              defaultValue={data?.name || 'SlideBolt'}
             />
             <TextField
               margin="normal"
@@ -42,9 +43,17 @@ const Settings: React.FC = () => {
               id="description"
               defaultValue={data?.description || ''}
             />
-            <Typography variant="caption" color="textSecondary" sx={{ mt: 2, display: 'block' }}>
-              System Version: {data?.version}
-            </Typography>
+            <Box sx={{ mt: 2, display: 'flex', gap: 3 }}>
+              <Typography variant="caption" color="textSecondary">
+                UI: {import.meta.env.VITE_APP_VERSION || 'dev'}
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                API: {data?.version || 'dev'}
+              </Typography>
+              <Typography variant="caption" color="textSecondary">
+                Core: {data?.coreVersion || 'unknown'}
+              </Typography>
+            </Box>
             <Button
               type="submit"
               variant="contained"
