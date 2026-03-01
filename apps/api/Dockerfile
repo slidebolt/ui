@@ -32,10 +32,11 @@ COPY --from=build /app/apps/api/dist ./apps/api/dist
 COPY --from=build /app/packages/database/dist ./packages/database/dist
 COPY packages/database/drizzle ./packages/database/drizzle
 COPY packages/database/drizzle.config.ts ./packages/database/drizzle.config.ts
+COPY packages/database/src ./packages/database/src
 
 ENV NODE_ENV=production
 WORKDIR /app/apps/api
 EXPOSE 40001
-# Run drizzle migrations then start server
-CMD ["sh", "-c", "cd /app/packages/database && npx drizzle-kit push && cd /app/apps/api && node dist/index.js"]
+# Apply SQL migrations then start server
+CMD ["sh", "-c", "cd /app/packages/database && npx drizzle-kit migrate && cd /app/apps/api && node dist/index.js"]
 
