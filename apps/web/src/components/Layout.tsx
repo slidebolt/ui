@@ -1,11 +1,28 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { Typography } from '@mui/material';
 import { LayoutDashboard, Settings, Activity, ToyBrick, History as HistoryIcon, LogOut, Search } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 
 const Layout: React.FC = () => {
   const { user, logout } = useAuth();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const es = new EventSource('/api/topics/subscribe');
+    es.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'device') {
+          queryClient.invalidateQueries({ queryKey: ['devices', msg.plugin_id] });
+        } else if (msg.type === 'entity') {
+          queryClient.invalidateQueries({ queryKey: ['entities', msg.device_id] });
+        }
+      } catch {}
+    };
+    return () => es.close();
+  }, [queryClient]);
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -57,6 +74,13 @@ const Layout: React.FC = () => {
           >
             <Settings className="w-5 h-5 mr-3" />
             <span>Settings</span>
+          </Link>
+          <Link
+            to="/page-builder"
+            className="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+          >
+            <LayoutDashboard className="w-5 h-5 mr-3" />
+            <span>Page Builder</span>
           </Link>
         </nav>
 

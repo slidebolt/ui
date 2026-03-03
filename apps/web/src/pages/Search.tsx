@@ -18,7 +18,7 @@ const Search: React.FC = () => {
     queryFn: async () => {
       if (!activeSearch.query) return [];
       const response = await axios.get(`/api/search/${activeSearch.type}`, {
-        params: { pattern: activeSearch.query }
+        params: { q: activeSearch.query }
       });
       return response.data || [];
     },
@@ -50,7 +50,7 @@ const Search: React.FC = () => {
               </Select>
             </FormControl>
             <TextField 
-              label="Search Pattern (e.g., *, name*)" 
+              label="Search Pattern (e.g., *, name*) — devices/plugins only"
               variant="outlined" 
               size="small" 
               fullWidth 

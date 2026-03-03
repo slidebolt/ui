@@ -39,7 +39,7 @@ interface Entity {
   schema?: {
     commands?: Array<{ action: string; fields?: any[] }>;
   };
-  labels?: Record<string, string>;
+  labels?: Record<string, string[]>;
 }
 
 function domainIcon(domain: string) {
@@ -269,10 +269,12 @@ function EntityCard({
               <LabelEditor
                 labels={entity.labels}
                 onSave={async (labels) => {
-                  await axios.put(`/api/plugins/${pluginId}/devices/${deviceId}/entities`, { 
+                  await axios.put(`/api/plugins/${pluginId}/devices/${deviceId}/entities`, {
                     id: entity.id,
+                    device_id: entity.device_id,
+                    domain: entity.domain,
                     local_name: entity.local_name || entity.id,
-                    labels 
+                    labels,
                   });
                   onLabelsUpdate?.();
                 }}

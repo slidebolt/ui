@@ -7,11 +7,12 @@ import {
 } from '@mui/material';
 
 interface JournalEvent {
-  id: string;
-  type: string;
-  source: string;
-  payload: any;
-  timestamp: string;
+  event_id: string;
+  name: string;
+  plugin_id: string;
+  device_id: string;
+  entity_id: string;
+  created_at: string;
 }
 
 const Journal: React.FC = () => {
@@ -21,9 +22,9 @@ const Journal: React.FC = () => {
       const response = await axios.get('/api/journal/events');
       const data = Array.isArray(response.data) ? response.data : [];
       return data.sort((a, b) => {
-        const typeCompare = a.type.localeCompare(b.type);
-        if (typeCompare !== 0) return typeCompare;
-        return a.source.localeCompare(b.source);
+        const nameCompare = a.name.localeCompare(b.name);
+        if (nameCompare !== 0) return nameCompare;
+        return a.plugin_id.localeCompare(b.plugin_id);
       });
     },
     refetchInterval: 5000,
@@ -41,18 +42,20 @@ const Journal: React.FC = () => {
             <TableHead>
               <TableRow>
                 <TableCell>Time</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Source</TableCell>
-                <TableCell>Data</TableCell>
+                <TableCell>Event</TableCell>
+                <TableCell>Plugin</TableCell>
+                <TableCell>Device</TableCell>
+                <TableCell>Entity</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {events?.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell>{new Date(event.timestamp).toLocaleTimeString()}</TableCell>
-                  <TableCell>{event.type}</TableCell>
-                  <TableCell>{event.source}</TableCell>
-                  <TableCell>{JSON.stringify(event.payload)}</TableCell>
+                <TableRow key={event.event_id}>
+                  <TableCell>{new Date(event.created_at).toLocaleTimeString()}</TableCell>
+                  <TableCell>{event.name}</TableCell>
+                  <TableCell>{event.plugin_id}</TableCell>
+                  <TableCell>{event.device_id}</TableCell>
+                  <TableCell>{event.entity_id}</TableCell>
                 </TableRow>
               ))}
               {events?.length === 0 && (

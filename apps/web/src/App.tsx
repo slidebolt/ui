@@ -8,6 +8,8 @@ import Entities from './pages/Entities';
 import Journal from './pages/Journal';
 import Search from './pages/Search';
 import Login from './pages/Login';
+import PageBuilder from './pages/PageBuilder';
+import LightModuleWorkbenchPage from './features/page-builder/modules/light/LightModuleWorkbenchPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './components/AuthContext';
 
@@ -32,6 +34,8 @@ function App() {
             <Route path="plugins/:pluginId/devices/:deviceId/entities" element={<Entities />} />
             <Route path="journal" element={<Journal />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="page-builder" element={<PageBuilder />} />
+            <Route path="page-builder/modules/light/:moduleId" element={<LightModuleWorkbenchPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

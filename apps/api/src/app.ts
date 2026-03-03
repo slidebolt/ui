@@ -8,6 +8,7 @@ import { createDb, users, eq } from '@repo/database';
 import { healthRoutes } from './routes/health.js';
 import { userRoutes } from './routes/users.js';
 import { roleRoutes } from './routes/roles.js';
+import { pageRoutes } from './routes/pages.js';
 import { seedSystemDefaults } from './seed.js';
 import { rbacHook } from './middleware/rbac.js';
 
@@ -90,6 +91,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   const rbac = rbacHook(db);
   await fastify.register(userRoutes, { prefix: '/api', db });
   await fastify.register(roleRoutes, { prefix: '/api', db });
+  await fastify.register(pageRoutes, { prefix: '/api', db });
 
   // Apply RBAC preHandler to all /api/users* and /api/roles* routes
   fastify.addHook('preHandler', async (request, reply) => {
@@ -156,5 +158,71 @@ export async function buildApp(): Promise<FastifyInstance> {
     };
   });
 
+  // Browser-facing SSE fan-out endpoint
+  const browserSubscribers = new Set<(line: string) => void>();
+
+  fastify.get('/api/topics/subscribe', async (request, reply) => {
+    reply.raw.setHeader('Content-Type', 'text/event-stream');
+    reply.raw.setHeader('Cache-Control', 'no-cache');
+    reply.raw.setHeader('Connection', 'keep-alive');
+    reply.raw.setHeader('X-Accel-Buffering', 'no');
+    reply.raw.flushHeaders();
+
+    const send = (line: string) => {
+      reply.raw.write(line);
+    };
+    browserSubscribers.add(send);
+    request.raw.on('close', () => browserSubscribers.delete(send));
+  });
+
+  startTopicStream(INTERNAL_SERVICE_URL, fastify, browserSubscribers);
+
   return fastify;
+}
+
+function startTopicStream(
+  coreUrl: string,
+  fastify: FastifyInstance,
+  browserSubscribers: Set<(line: string) => void>,
+) {
+  const connect = async () => {
+    try {
+      const res = await fetch(`${coreUrl}/api/topics/subscribe`);
+      if (!res.ok || !res.body) {
+        throw new Error(`SSE connect failed: ${res.status}`);
+      }
+      fastify.log.info('[topics] connected to core event stream');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const msg = JSON.parse(line.slice(6));
+            if (msg.type === 'device') {
+              fastify.log.info(`[topics] device changed: plugin=${msg.plugin_id} device=${msg.device_id}`);
+            } else if (msg.type === 'entity') {
+              fastify.log.info(`[topics] entity changed: plugin=${msg.plugin_id} device=${msg.device_id} entity=${msg.entity_id}`);
+            }
+            // Fan out to all connected browser clients
+            const sseLine = `data: ${line.slice(6)}\n\n`;
+            for (const send of browserSubscribers) {
+              send(sseLine);
+            }
+          } catch {}
+        }
+      }
+      throw new Error('stream ended');
+    } catch (err) {
+      fastify.log.warn(`[topics] disconnected: ${err instanceof Error ? err.message : String(err)}, reconnecting in 3s`);
+    }
+    setTimeout(connect, 3000);
+  };
+  connect();
 }

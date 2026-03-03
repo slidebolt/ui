@@ -11,11 +11,10 @@ import { LabelEditor } from '../components/LabelEditor';
 
 interface Device {
   id: string;
-  name: string;
-  model?: string;
-  manufacturer?: string;
-  plugin_id: string;
-  labels?: Record<string, string>;
+  local_name: string;
+  source_id: string;
+  source_name: string;
+  labels?: Record<string, string[]>;
 }
 
 const Devices: React.FC = () => {
@@ -28,7 +27,7 @@ const Devices: React.FC = () => {
       try {
         const response = await axios.get(`/api/plugins/${pluginId}/devices`);
         const data = Array.isArray(response.data) ? response.data : Object.values(response.data) as Device[];
-        return data.sort((a, b) => a.name.localeCompare(b.name));
+        return data.sort((a, b) => a.local_name.localeCompare(b.local_name));
       } catch (err: any) {
         if (err.response?.status === 403 || err.response?.status === 404 || err.response?.status === 500) {
           return []; // Treat "Method not found" or "Forbidden" on devices as empty list
@@ -59,10 +58,10 @@ const Devices: React.FC = () => {
               <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Box display="flex" alignItems="center" gap={2}>
                   <Cpu className="text-purple-500" />
-                  <Typography variant="h6">{device.name}</Typography>
+                  <Typography variant="h6">{device.local_name}</Typography>
                 </Box>
                 <Typography variant="body2" color="textSecondary">
-                  Model: {device.model || 'Unknown'}
+                  Source: {device.source_name}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   ID: {device.id}
@@ -74,10 +73,12 @@ const Devices: React.FC = () => {
                   <LabelEditor
                     labels={device.labels}
                     onSave={async (labels) => {
-                      await axios.put(`/api/plugins/${pluginId}/devices`, { 
+                      await axios.put(`/api/plugins/${pluginId}/devices`, {
                         id: device.id,
-                        local_name: device.name,
-                        labels 
+                        local_name: device.local_name,
+                        source_id: device.source_id,
+                        source_name: device.source_name,
+                        labels
                       });
                       queryClient.invalidateQueries({ queryKey: ['devices', pluginId] });
                     }}

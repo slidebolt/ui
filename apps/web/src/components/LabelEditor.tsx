@@ -6,8 +6,8 @@ import {
 import { Plus, Trash2 } from 'lucide-react';
 
 interface LabelEditorProps {
-  labels?: Record<string, string>;
-  onSave: (labels: Record<string, string>) => Promise<void>;
+  labels?: Record<string, string[]>;
+  onSave: (labels: Record<string, string[]>) => Promise<void>;
   disabled?: boolean;
 }
 
@@ -19,7 +19,9 @@ interface LabelPair {
 export const LabelEditor: React.FC<LabelEditorProps> = ({ labels = {}, onSave, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const [labelPairs, setLabelPairs] = useState<LabelPair[]>(
-    Object.entries(labels).map(([key, value]) => ({ key, value }))
+    Object.entries(labels).flatMap(([key, values]) =>
+      (Array.isArray(values) ? values : [values]).map(value => ({ key, value }))
+    )
   );
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
@@ -53,10 +55,11 @@ export const LabelEditor: React.FC<LabelEditorProps> = ({ labels = {}, onSave, d
       }
     }
 
-    const newLabels: Record<string, string> = {};
+    const newLabels: Record<string, string[]> = {};
     for (const { key, value } of labelPairs) {
       if (key && value) {
-        newLabels[key] = value;
+        if (!newLabels[key]) newLabels[key] = [];
+        newLabels[key].push(value);
       }
     }
 
@@ -76,15 +79,17 @@ export const LabelEditor: React.FC<LabelEditorProps> = ({ labels = {}, onSave, d
   return (
     <>
       <Box display="flex" gap={1} flexWrap="wrap">
-        {Object.entries(labels).map(([key, value]) => (
-          <Chip
-            key={key}
-            label={`${key}: ${value}`}
-            variant="outlined"
-            size="small"
-            onClick={() => setOpen(true)}
-          />
-        ))}
+        {Object.entries(labels).flatMap(([key, values]) =>
+          (Array.isArray(values) ? values : [values]).map((value, i) => (
+            <Chip
+              key={`${key}-${i}`}
+              label={`${key}: ${value}`}
+              variant="outlined"
+              size="small"
+              onClick={() => setOpen(true)}
+            />
+          ))
+        )}
         <Button
           variant="outlined"
           size="small"

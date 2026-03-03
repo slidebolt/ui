@@ -1,1 +1,1 @@
-pnpm exec dotenv -e .env.dev -- pnpm --filter web dev
+pnpm install && pnpm dlx dotenv-cli -e .env.dev -- bash -c 'pnpm --filter web dev'

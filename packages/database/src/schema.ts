@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, boolean, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, boolean, jsonb, primaryKey } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id:        uuid('id').primaryKey().defaultRandom(),
@@ -43,5 +43,14 @@ export const sessionCounters = pgTable('session_counters', {
   id:        uuid('id').primaryKey().defaultRandom(),
   sessionId: text('session_id').unique().notNull(),
   visits:    text('visits').notNull().default('1'),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
+});
+
+export const pageBuilderPages = pgTable('page_builder_pages', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  userId:    uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  name:      text('name').notNull(),
+  blob:      jsonb('blob').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow().$onUpdate(() => new Date()),
 });
