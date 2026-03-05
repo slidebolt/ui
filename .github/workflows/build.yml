@@ -55,22 +55,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Set API GHCR package visibility to public
-        run: |
-          set -euo pipefail
-          PACKAGE_NAME=ui-api
-          OWNER="${{ github.repository_owner }}"
-
-          gh api \
-            --method PATCH \
-            "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/visibility" \
-            -f visibility=public \
-          || gh api \
-            --method PATCH \
-            "/user/packages/container/${PACKAGE_NAME}/visibility" \
-            -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-web:
     name: Build Web image
@@ -116,19 +100,3 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Set Web GHCR package visibility to public
-        run: |
-          set -euo pipefail
-          PACKAGE_NAME=ui-web
-          OWNER="${{ github.repository_owner }}"
-
-          gh api \
-            --method PATCH \
-            "/orgs/${OWNER}/packages/container/${PACKAGE_NAME}/visibility" \
-            -f visibility=public \
-          || gh api \
-            --method PATCH \
-            "/user/packages/container/${PACKAGE_NAME}/visibility" \
-            -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
