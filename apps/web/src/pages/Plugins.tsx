@@ -27,6 +27,16 @@ interface PluginResponse {
   };
 }
 
+interface PluginRate {
+  plugin_id: string;
+  event_count: number;
+  command_count: number;
+  window_seconds: number;
+  events_per_sec: number;
+  commands_per_sec: number;
+  total_per_sec: number;
+}
+
 const Plugins: React.FC = () => {
   const { data: plugins, isLoading, error } = useQuery<Plugin[]>({
     queryKey: ['plugins'],
@@ -42,6 +52,18 @@ const Plugins: React.FC = () => {
       })).sort((a, b) => a.name.localeCompare(b.name));
     },
   });
+  const { data: rates } = useQuery<PluginRate[]>({
+    queryKey: ['plugin-rates'],
+    queryFn: async () => {
+      const response = await axios.get<PluginRate[]>('/api/history/plugin-rates?window=30');
+      return Array.isArray(response.data) ? response.data : [];
+    },
+    refetchInterval: 2000,
+  });
+
+  const ratesByPlugin = new Map((rates || []).map((r) => [r.plugin_id, r]));
+
+  const formatRate = (value?: number) => (value || 0).toFixed(2);
 
   if (isLoading) return <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>;
   if (error) return <Typography color="error">Error loading plugins</Typography>;
@@ -50,11 +72,13 @@ const Plugins: React.FC = () => {
     <Box>
       <Typography variant="h4" gutterBottom>Plugins</Typography>
       <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-        Management and configuration of system plugins.
+        Management and configuration of system plugins, including live activity rates.
       </Typography>
 
       <Grid container spacing={3}>
-        {plugins?.map((plugin) => (
+        {plugins?.map((plugin) => {
+          const rate = ratesByPlugin.get(plugin.id);
+          return (
           <Grid item xs={12} md={6} lg={4} key={plugin.id}>
             <Card>
               <CardContent>
@@ -66,6 +90,17 @@ const Plugins: React.FC = () => {
                   {plugin.description || 'No description provided.'}
                 </Typography>
                 <Divider sx={{ my: 1 }} />
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="textSecondary">
+                    Events/s: {formatRate(rate?.events_per_sec)}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Commands/s: {formatRate(rate?.commands_per_sec)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Total/s: {formatRate(rate?.total_per_sec)}
+                  </Typography>
+                </Box>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
                   <Typography variant="caption" color="textSecondary">
                     ID: {plugin.id}
@@ -88,7 +123,8 @@ const Plugins: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
-        ))}
+          );
+        })}
         {plugins?.length === 0 && (
           <Grid item xs={12}>
             <Typography variant="body1" align="center" sx={{ mt: 4, color: 'text.secondary' }}>

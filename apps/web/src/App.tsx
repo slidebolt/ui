@@ -5,7 +5,7 @@ import Settings from './pages/Settings';
 import Plugins from './pages/Plugins';
 import Devices from './pages/Devices';
 import Entities from './pages/Entities';
-import Journal from './pages/Journal';
+import Logs from './pages/Logs';
 import Search from './pages/Search';
 import Login from './pages/Login';
 import PageBuilder from './pages/PageBuilder';
@@ -32,7 +32,7 @@ function App() {
             <Route path="plugins" element={<Plugins />} />
             <Route path="plugins/:pluginId/devices" element={<Devices />} />
             <Route path="plugins/:pluginId/devices/:deviceId/entities" element={<Entities />} />
-            <Route path="journal" element={<Journal />} />
+            <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
             <Route path="page-builder" element={<PageBuilder />} />
             <Route path="page-builder/modules/light/:moduleId" element={<LightModuleWorkbenchPage />} />

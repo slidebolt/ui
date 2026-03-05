@@ -17,6 +17,17 @@ interface Device {
   labels?: Record<string, string[]>;
 }
 
+interface DeviceRate {
+  plugin_id: string;
+  device_id: string;
+  event_count: number;
+  command_count: number;
+  window_seconds: number;
+  events_per_sec: number;
+  commands_per_sec: number;
+  total_per_sec: number;
+}
+
 const Devices: React.FC = () => {
   const { pluginId } = useParams<{ pluginId: string }>();
   const queryClient = useQueryClient();
@@ -37,6 +48,18 @@ const Devices: React.FC = () => {
     },
     retry: false,
   });
+  const { data: rates } = useQuery<DeviceRate[]>({
+    queryKey: ['device-rates', pluginId],
+    queryFn: async () => {
+      const response = await axios.get<DeviceRate[]>(`/api/history/device-rates?plugin_id=${pluginId}&window=30`);
+      return Array.isArray(response.data) ? response.data : [];
+    },
+    enabled: !!pluginId,
+    refetchInterval: 2000,
+  });
+
+  const rateByDevice = new Map((rates || []).map((r) => [r.device_id, r]));
+  const formatRate = (value?: number) => (value || 0).toFixed(2);
 
   if (isLoading) return <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>;
   if (error) return <Typography color="error">Error loading devices</Typography>;
@@ -52,7 +75,9 @@ const Devices: React.FC = () => {
       <Typography variant="h4" gutterBottom>Devices for {pluginId}</Typography>
 
       <Grid container spacing={3}>
-        {devices?.map((device) => (
+        {devices?.map((device) => {
+          const rate = rateByDevice.get(device.id);
+          return (
           <Grid item xs={12} md={6} lg={4} key={device.id}>
             <Card>
               <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -66,6 +91,17 @@ const Devices: React.FC = () => {
                 <Typography variant="body2" color="textSecondary">
                   ID: {device.id}
                 </Typography>
+                <Box>
+                  <Typography variant="body2" color="textSecondary">
+                    Events/s: {formatRate(rate?.events_per_sec)}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Commands/s: {formatRate(rate?.commands_per_sec)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    Total/s: {formatRate(rate?.total_per_sec)}
+                  </Typography>
+                </Box>
                 <Box>
                   <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1 }}>
                     Labels
@@ -97,7 +133,8 @@ const Devices: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
-        ))}
+          );
+        })}
         {devices?.length === 0 && (
           <Grid item xs={12}>
             <Typography variant="body1" align="center" sx={{ mt: 4, color: 'text.secondary' }}>

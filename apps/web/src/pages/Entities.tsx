@@ -42,6 +42,18 @@ interface Entity {
   labels?: Record<string, string[]>;
 }
 
+interface EntityRate {
+  plugin_id: string;
+  device_id: string;
+  entity_id: string;
+  event_count: number;
+  command_count: number;
+  window_seconds: number;
+  events_per_sec: number;
+  commands_per_sec: number;
+  total_per_sec: number;
+}
+
 function domainIcon(domain: string) {
   if (domain === 'light')       return <Zap className="w-5 h-5 text-yellow-500" />;
   if (domain === 'switch')      return <ToggleLeft className="w-5 h-5 text-blue-500" />;
@@ -215,11 +227,13 @@ function EntityCard({
   entity,
   pluginId,
   deviceId,
+  rate,
   onLabelsUpdate,
 }: {
   entity: Entity;
   pluginId: string;
   deviceId: string;
+  rate?: EntityRate;
   onLabelsUpdate?: () => void;
 }) {
   const [error, setError] = useState<string | undefined>();
@@ -262,6 +276,9 @@ function EntityCard({
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="subtitle2">{entity.local_name || entity.id}</Typography>
             <Typography variant="caption" color="textSecondary">{entity.domain}</Typography>
+            <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
+              Events/s: {(rate?.events_per_sec || 0).toFixed(2)} | Commands/s: {(rate?.commands_per_sec || 0).toFixed(2)} | Total/s: {(rate?.total_per_sec || 0).toFixed(2)}
+            </Typography>
             <Box sx={{ mt: 1 }}>
               <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 0.5 }}>
                 Labels
@@ -314,6 +331,19 @@ const Entities: React.FC = () => {
     },
     retry: false,
   });
+  const { data: rates } = useQuery<EntityRate[]>({
+    queryKey: ['entity-rates', pluginId, deviceId],
+    queryFn: async () => {
+      const response = await axios.get<EntityRate[]>(
+        `/api/history/entity-rates?plugin_id=${pluginId}&device_id=${deviceId}&window=30`
+      );
+      return Array.isArray(response.data) ? response.data : [];
+    },
+    enabled: !!pluginId && !!deviceId,
+    refetchInterval: 2000,
+  });
+
+  const rateByEntity = new Map((rates || []).map((r) => [r.entity_id, r]));
 
   if (isLoading) return <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>;
   if (error) return <Typography color="error">Error loading entities</Typography>;
@@ -336,6 +366,7 @@ const Entities: React.FC = () => {
               entity={entity}
               pluginId={pluginId!}
               deviceId={deviceId!}
+              rate={rateByEntity.get(entity.id)}
               onLabelsUpdate={() => refetch()}
             />
           </Grid>

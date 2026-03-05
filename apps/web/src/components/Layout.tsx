@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { Typography } from '@mui/material';
-import { LayoutDashboard, Settings, Activity, ToyBrick, History as HistoryIcon, LogOut, Search } from 'lucide-react';
+import { LayoutDashboard, Settings, Activity, ToyBrick, LogOut, Search, FileText } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
 
@@ -62,11 +62,11 @@ const Layout: React.FC = () => {
             <span>Plugins</span>
           </Link>
           <Link
-            to="/journal"
+            to="/logs"
             className="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
           >
-            <HistoryIcon className="w-5 h-5 mr-3" />
-            <span>Journal</span>
+            <FileText className="w-5 h-5 mr-3" />
+            <span>Logs</span>
           </Link>
           <Link
             to="/settings"

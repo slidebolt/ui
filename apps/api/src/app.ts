@@ -101,7 +101,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // Proxy routes (RBAC-enforced)
-  const proxyPaths = ['/api/plugins*', '/api/search*', '/api/schema*', '/api/batch*', '/api/journal*', '/api/labels*'];
+  const proxyPaths = ['/api/plugins*', '/api/search*', '/api/schema*', '/api/batch*', '/api/journal*', '/api/history*', '/api/labels*'];
 
   proxyPaths.forEach(path => {
     fastify.all(path, { preHandler: rbac }, async (request, reply) => {
