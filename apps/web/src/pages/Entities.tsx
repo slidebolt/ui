@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import {
   Typography, Box, Card, CardContent, Grid,
@@ -310,6 +310,9 @@ function EntityCard({
 // ── Page ───────────────────────────────────────────────────────────────────────
 const Entities: React.FC = () => {
   const { pluginId, deviceId } = useParams<{ pluginId: string; deviceId: string }>();
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const { data: entities, isLoading, error, refetch } = useQuery<Entity[]>({
     queryKey: ['entities', deviceId],
@@ -358,6 +361,34 @@ const Entities: React.FC = () => {
       </Breadcrumbs>
 
       <Typography variant="h4" gutterBottom>Entities for {deviceId}</Typography>
+      <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Button
+          variant="contained"
+          size="small"
+          disabled={!pluginId || !deviceId || refreshing}
+          onClick={async () => {
+            if (!pluginId || !deviceId) return;
+            try {
+              setRefreshing(true);
+              setRefreshError(null);
+              await axios.post(`/api/plugins/${pluginId}/devices/${deviceId}/refresh`);
+              await queryClient.invalidateQueries({ queryKey: ['entities', deviceId] });
+              await queryClient.invalidateQueries({ queryKey: ['entity-rates', pluginId, deviceId] });
+            } catch (err: any) {
+              setRefreshError(err?.response?.data?.error || 'Refresh failed');
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+        >
+          {refreshing ? 'Refreshing...' : 'Refresh Entities'}
+        </Button>
+        {refreshError && (
+          <Typography variant="body2" color="error">
+            {refreshError}
+          </Typography>
+        )}
+      </Box>
 
       <Grid container spacing={2}>
         {entities?.filter(e => e.domain !== 'config').map((entity) => (

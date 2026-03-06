@@ -50,7 +50,7 @@ const Search: React.FC = () => {
               </Select>
             </FormControl>
             <TextField 
-              label="Search Pattern (e.g., *, name*) — devices/plugins only"
+              label="Search keyword or pattern (e.g., *, name, my-id)"
               variant="outlined" 
               size="small" 
               fullWidth 

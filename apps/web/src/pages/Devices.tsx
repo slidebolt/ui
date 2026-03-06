@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
@@ -31,6 +31,8 @@ interface DeviceRate {
 const Devices: React.FC = () => {
   const { pluginId } = useParams<{ pluginId: string }>();
   const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const { data: devices, isLoading, error } = useQuery<Device[]>({
     queryKey: ['devices', pluginId],
@@ -73,6 +75,34 @@ const Devices: React.FC = () => {
       </Breadcrumbs>
 
       <Typography variant="h4" gutterBottom>Devices for {pluginId}</Typography>
+      <Box sx={{ mb: 2, display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Button
+          variant="contained"
+          size="small"
+          disabled={!pluginId || refreshing}
+          onClick={async () => {
+            if (!pluginId) return;
+            try {
+              setRefreshing(true);
+              setRefreshError(null);
+              await axios.post(`/api/plugins/${pluginId}/refresh`);
+              await queryClient.invalidateQueries({ queryKey: ['devices', pluginId] });
+              await queryClient.invalidateQueries({ queryKey: ['device-rates', pluginId] });
+            } catch (err: any) {
+              setRefreshError(err?.response?.data?.error || 'Refresh failed');
+            } finally {
+              setRefreshing(false);
+            }
+          }}
+        >
+          {refreshing ? 'Refreshing...' : 'Refresh Discovery'}
+        </Button>
+        {refreshError && (
+          <Typography variant="body2" color="error">
+            {refreshError}
+          </Typography>
+        )}
+      </Box>
 
       <Grid container spacing={3}>
         {devices?.map((device) => {
