@@ -4,12 +4,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import {
   Typography, Box, Card, CardContent, Grid,
-  CircularProgress, Breadcrumbs, Chip, Button, Slider, LinearProgress, Tooltip,
+  CircularProgress, Breadcrumbs, Chip, Button, Slider, LinearProgress, Tooltip, IconButton,
 } from '@mui/material';
 import {
-  Zap, ToggleLeft, Radio, Cpu, Calendar, Clock, Camera, DoorOpen, Settings,
+  Zap, ToggleLeft, Radio, Cpu, Calendar, Clock, Camera, DoorOpen, Settings, Activity,
 } from 'lucide-react';
 import { LabelEditor } from '../components/LabelEditor';
+import { EntityTraceDrawer } from '../components/EntityTraceDrawer';
 
 interface EntityData {
   effective?: {
@@ -229,12 +230,14 @@ function EntityCard({
   deviceId,
   rate,
   onLabelsUpdate,
+  onTrace,
 }: {
   entity: Entity;
   pluginId: string;
   deviceId: string;
   rate?: EntityRate;
   onLabelsUpdate?: () => void;
+  onTrace?: () => void;
 }) {
   const [error, setError] = useState<string | undefined>();
 
@@ -299,8 +302,21 @@ function EntityCard({
             </Box>
           </Box>
         </Box>
-        <Box display="flex" alignItems="center">
+        <Box display="flex" alignItems="center" gap={1}>
           {renderControls()}
+          <Tooltip title="Trace events & commands">
+            <IconButton size="small" onClick={onTrace} sx={{ ml: 1 }}>
+              <Activity size={16} />
+            </IconButton>
+          </Tooltip>
+          <Button
+            component={Link}
+            to={`/plugins/${pluginId}/devices/${deviceId}/entities/${entity.id}/script`}
+            variant="outlined"
+            size="small"
+          >
+            Manage Script
+          </Button>
         </Box>
       </CardContent>
     </Card>
@@ -313,6 +329,7 @@ const Entities: React.FC = () => {
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [traceEntity, setTraceEntity] = useState<{ id: string; name: string } | null>(null);
 
   const { data: entities, isLoading, error, refetch } = useQuery<Entity[]>({
     queryKey: ['entities', deviceId],
@@ -399,6 +416,7 @@ const Entities: React.FC = () => {
               deviceId={deviceId!}
               rate={rateByEntity.get(entity.id)}
               onLabelsUpdate={() => refetch()}
+              onTrace={() => setTraceEntity({ id: entity.id, name: entity.local_name || entity.id })}
             />
           </Grid>
         ))}
@@ -410,6 +428,15 @@ const Entities: React.FC = () => {
           </Grid>
         )}
       </Grid>
+
+      <EntityTraceDrawer
+        open={!!traceEntity}
+        onClose={() => setTraceEntity(null)}
+        pluginId={pluginId!}
+        deviceId={deviceId!}
+        entityId={traceEntity?.id ?? ''}
+        entityName={traceEntity?.name ?? ''}
+      />
     </Box>
   );
 };

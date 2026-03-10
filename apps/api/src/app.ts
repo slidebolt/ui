@@ -52,6 +52,8 @@ export async function buildApp(): Promise<FastifyInstance> {
       ? 'http://localhost:39011'
       : 'http://127.0.0.1:39011');
 
+  fastify.log.info(`Resolved INTERNAL_SERVICE_URL: ${INTERNAL_SERVICE_URL}`);
+
   // Seed system roles + users on every startup
   try {
     await seedSystemDefaults(db, msg => fastify.log.info(msg));
@@ -112,9 +114,17 @@ export async function buildApp(): Promise<FastifyInstance> {
 
         const fetchOptions: RequestInit = {
           method: request.method,
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            // Forward Authorization header from incoming request to the proxied request
+            ...(request.headers.authorization && { 'Authorization': request.headers.authorization }),
+            // Add any other headers you want to forward, e.g., for tracing or debugging
+            // 'x-request-id': request.headers['x-request-id'],
+          },
           signal: controller.signal,
         };
+        fastify.log.info(`[proxy] Incoming Authorization: ${request.headers.authorization}`);
+        fastify.log.info(`[proxy] Outgoing Headers: ${JSON.stringify(fetchOptions.headers)}`);
 
         if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && request.body) {
           fetchOptions.body = JSON.stringify(request.body);

@@ -10,6 +10,7 @@ import Search from './pages/Search';
 import Login from './pages/Login';
 import PageBuilder from './pages/PageBuilder';
 import LightModuleWorkbenchPage from './features/page-builder/modules/light/LightModuleWorkbenchPage';
+import ScriptManagerPage from './pages/ScriptManagerPage'; // Import the new page
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './components/AuthContext';
 
@@ -32,6 +33,7 @@ function App() {
             <Route path="plugins" element={<Plugins />} />
             <Route path="plugins/:pluginId/devices" element={<Devices />} />
             <Route path="plugins/:pluginId/devices/:deviceId/entities" element={<Entities />} />
+            <Route path="plugins/:pluginId/devices/:deviceId/entities/:entityId/script" element={<ScriptManagerPage />} /> {/* New route */}
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings />} />
             <Route path="page-builder" element={<PageBuilder />} />
