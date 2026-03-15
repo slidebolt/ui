@@ -152,3 +152,5 @@ node_modules/
 *.tsbuildinfo
 .env.dev.secrets
 docker-compose.prod.yml
+
+**/.env.local
