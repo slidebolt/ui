@@ -1,140 +1,263 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import axios from 'axios';
+import { useState, useCallback, useMemo } from 'react';
+import { useCoreEvents, CoreEvent } from '../hooks/useCoreEvents';
 import { 
-  Typography, Box, Card, CardContent, Grid, 
-  CircularProgress, Chip, Divider, Button 
-} from '@mui/material';
-import { Link } from 'react-router-dom';
-import { ToyBrick } from 'lucide-react';
+  ChevronDown, 
+  ChevronRight, 
+  Puzzle, 
+  Server, 
+  Zap,
+  LayoutGrid,
+  Info,
+  Database
+} from 'lucide-react';
 
-interface Plugin {
+type EntityData = {
   id: string;
   name: string;
-  description?: string;
-  status: string;
-}
-
-interface PluginResponse {
-  [key: string]: {
-    manifest: {
-      id: string;
-      name: string;
-      version: string;
-      description?: string;
-    };
-    status?: string;
-  };
-}
-
-interface PluginRate {
-  plugin_id: string;
-  event_count: number;
-  command_count: number;
-  window_seconds: number;
-  events_per_sec: number;
-  commands_per_sec: number;
-  total_per_sec: number;
-}
-
-const Plugins: React.FC = () => {
-  const { data: plugins, isLoading, error } = useQuery<Plugin[]>({
-    queryKey: ['plugins'],
-    queryFn: async () => {
-      const response = await axios.get<PluginResponse>('/api/plugins');
-      const data = response.data;
-      
-      return Object.entries(data).map(([key, value]) => ({
-        id: value.manifest.id || key,
-        name: value.manifest.name,
-        description: value.manifest.description,
-        status: value.status || 'active',
-      })).sort((a, b) => a.name.localeCompare(b.name));
-    },
-  });
-  const { data: rates } = useQuery<PluginRate[]>({
-    queryKey: ['plugin-rates'],
-    queryFn: async () => {
-      const response = await axios.get<PluginRate[]>('/api/history/plugin-rates?window=30');
-      return Array.isArray(response.data) ? response.data : [];
-    },
-    refetchInterval: 2000,
-  });
-
-  const ratesByPlugin = new Map((rates || []).map((r) => [r.plugin_id, r]));
-
-  const formatRate = (value?: number) => (value || 0).toFixed(2);
-
-  if (isLoading) return <Box display="flex" justifyContent="center" mt={4}><CircularProgress /></Box>;
-  if (error) return <Typography color="error">Error loading plugins</Typography>;
-
-  return (
-    <Box>
-      <Typography variant="h4" gutterBottom>Plugins</Typography>
-      <Typography variant="body1" color="textSecondary" sx={{ mb: 4 }}>
-        Management and configuration of system plugins, including live activity rates.
-      </Typography>
-
-      <Grid container spacing={3}>
-        {plugins?.map((plugin) => {
-          const rate = ratesByPlugin.get(plugin.id);
-          return (
-          <Grid item xs={12} md={6} lg={4} key={plugin.id}>
-            <Card>
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={2} mb={2}>
-                  <ToyBrick className="text-blue-500" />
-                  <Typography variant="h6">{plugin.name}</Typography>
-                </Box>
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 2, minHeight: '3em' }}>
-                  {plugin.description || 'No description provided.'}
-                </Typography>
-                <Divider sx={{ my: 1 }} />
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="textSecondary">
-                    Events/s: {formatRate(rate?.events_per_sec)}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    Commands/s: {formatRate(rate?.commands_per_sec)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    Total/s: {formatRate(rate?.total_per_sec)}
-                  </Typography>
-                </Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
-                  <Typography variant="caption" color="textSecondary">
-                    ID: {plugin.id}
-                  </Typography>
-                  <Chip 
-                    label={plugin.status || 'Active'} 
-                    size="small" 
-                    color={plugin.status === 'error' ? 'error' : 'success'} 
-                  />
-                </Box>
-                <Button 
-                  component={Link} 
-                  to={`/plugins/${plugin.id}/devices`}
-                  variant="contained"
-                  fullWidth
-                  sx={{ mt: 2 }}
-                >
-                  Manage Devices
-                </Button>
-              </CardContent>
-            </Card>
-          </Grid>
-          );
-        })}
-        {plugins?.length === 0 && (
-          <Grid item xs={12}>
-            <Typography variant="body1" align="center" sx={{ mt: 4, color: 'text.secondary' }}>
-              No plugins found.
-            </Typography>
-          </Grid>
-        )}
-      </Grid>
-    </Box>
-  );
+  plugin: string;
+  deviceID: string;
+  type: string;
 };
 
-export default Plugins;
+type DeviceData = {
+  id: string;
+  name: string;
+  plugin: string;
+};
+
+type Entity = { key: string; data: EntityData };
+type Device = { key: string; data: DeviceData };
+
+type PluginGroup = {
+  name: string;
+  deviceCount: number;
+  entityCount: number;
+  devices: string[];
+  entities: string[];
+};
+
+export default function Plugins() {
+  const [entities, setEntities] = useState<Map<string, Entity>>(new Map());
+  const [devices, setDevices] = useState<Map<string, Device>>(new Map());
+  const [ready, setReady] = useState(false);
+  const [expandedName, setExpandedName] = useState<string | null>(null);
+
+  const handleEvent = useCallback((event: CoreEvent) => {
+    if (event.type === 'snapshot' && event.items) {
+      const eMap = new Map<string, Entity>();
+      const dMap = new Map<string, Device>();
+      
+      for (const item of event.items) {
+        if (item.key.startsWith('plugin-')) {
+          const segments = item.key.split('.');
+          if (segments.length >= 3) {
+            eMap.set(item.key, item as Entity);
+          } else if (segments.length === 2) {
+            dMap.set(item.key, item as Device);
+          }
+        }
+      }
+      setEntities(eMap);
+      setDevices(dMap);
+      setReady(true);
+    } else if (event.type === 'upsert' && event.key?.startsWith('plugin-')) {
+      const segments = event.key.split('.');
+      if (segments.length >= 3) {
+        setEntities(prev => new Map(prev).set(event.key!, { key: event.key!, data: event.data as EntityData }));
+      } else if (segments.length === 2) {
+        setDevices(prev => new Map(prev).set(event.key!, { key: event.key!, data: event.data as DeviceData }));
+      }
+    } else if (event.type === 'remove' && event.key?.startsWith('plugin-')) {
+      const segments = event.key.split('.');
+      if (segments.length >= 3) {
+        setEntities(prev => { const m = new Map(prev); m.delete(event.key!); return m; });
+      } else if (segments.length === 2) {
+        setDevices(prev => { const m = new Map(prev); m.delete(event.key!); return m; });
+      }
+    }
+  }, []);
+
+  useCoreEvents('>', handleEvent);
+
+  const pluginGroups = useMemo(() => {
+    const groups = new Map<string, PluginGroup>();
+    
+    // Process entities
+    entities.forEach(e => {
+      const pName = e.data.plugin || e.key.split('.')[0];
+      if (!groups.has(pName)) {
+        groups.set(pName, { name: pName, deviceCount: 0, entityCount: 0, devices: [], entities: [] });
+      }
+      const g = groups.get(pName)!;
+      g.entityCount++;
+      g.entities.push(e.key);
+    });
+
+    // Process devices
+    devices.forEach(d => {
+      const pName = d.data.plugin || d.key.split('.')[0];
+      if (!groups.has(pName)) {
+        groups.set(pName, { name: pName, deviceCount: 0, entityCount: 0, devices: [], entities: [] });
+      }
+      const g = groups.get(pName)!;
+      g.deviceCount++;
+      g.devices.push(d.key);
+    });
+
+    return Array.from(groups.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [entities, devices]);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="text-xs uppercase tracking-[0.3em] text-cyan-400 font-semibold">Core</p>
+        <h1 className="text-2xl font-semibold text-slate-100">Plugins</h1>
+      </div>
+
+      {!ready && <p className="text-slate-500 text-sm">Connecting…</p>}
+
+      {ready && (
+        <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/40">
+          <table className="w-full text-sm text-left">
+            <thead>
+              <tr className="border-b border-slate-800 bg-slate-900/60">
+                <th className="w-10 px-4 py-3"></th>
+                <th className="px-4 py-3 text-xs uppercase tracking-wider text-slate-500 font-medium">Plugin Name</th>
+                <th className="px-4 py-3 text-xs uppercase tracking-wider text-slate-500 font-medium">Devices</th>
+                <th className="px-4 py-3 text-xs uppercase tracking-wider text-slate-500 font-medium">Entities</th>
+                <th className="px-4 py-3 text-xs uppercase tracking-wider text-slate-500 font-medium text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60">
+              {pluginGroups.map(g => (
+                <PluginRow 
+                  key={g.name} 
+                  group={g} 
+                  isExpanded={expandedName === g.name}
+                  onToggle={() => setExpandedName(expandedName === g.name ? null : g.name)}
+                />
+              ))}
+            </tbody>
+          </table>
+          {pluginGroups.length === 0 && (
+            <p className="text-center text-slate-600 text-sm py-8">No plugins found.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PluginRow({ group, isExpanded, onToggle }: { group: PluginGroup, isExpanded: boolean, onToggle: () => void }) {
+  const cleanName = group.name.replace('plugin-', '');
+
+  return (
+    <>
+      <tr 
+        onClick={onToggle}
+        className={`hover:bg-slate-800/40 transition-colors cursor-pointer ${isExpanded ? 'bg-slate-800/20' : ''}`}
+      >
+        <td className="px-4 py-3">
+          {isExpanded ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronRight className="w-4 h-4 text-slate-500" />}
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded bg-cyan-500/10 text-cyan-400">
+              <Puzzle className="w-4 h-4" />
+            </div>
+            <span className="text-slate-200 font-medium capitalize">{cleanName}</span>
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <Server className="w-3.5 h-3.5" />
+            {group.deviceCount}
+          </div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="flex items-center gap-1.5 text-slate-400">
+            <Zap className="w-3.5 h-3.5" />
+            {group.entityCount}
+          </div>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            Active
+          </span>
+        </td>
+      </tr>
+      {isExpanded && (
+        <tr>
+          <td colSpan={5} className="px-4 py-6 bg-slate-900/60 border-y border-slate-800/50">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Plugin Overview */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <Info className="w-4 h-4 text-cyan-500" />
+                  Plugin Overview
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Devices</div>
+                    <div className="text-2xl font-semibold text-slate-100">{group.deviceCount}</div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 space-y-1">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Entities</div>
+                    <div className="text-2xl font-semibold text-slate-100">{group.entityCount}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-tight flex items-center gap-2">
+                    <Server className="w-3 h-3" /> Registered Devices
+                  </div>
+                  <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-800/50 bg-slate-950/30 p-2">
+                    {group.devices.length > 0 ? (
+                      <ul className="space-y-1">
+                        {group.devices.map(d => (
+                          <li key={d} className="text-[10px] text-slate-400 font-mono truncate py-1 border-b border-slate-800/50 last:border-0">
+                            {d}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-[10px] text-slate-600 italic p-2 text-center">No explicit devices registered</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Data & Structure */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  <LayoutGrid className="w-4 h-4 text-amber-500" />
+                  Entity Map
+                </div>
+                
+                <div className="space-y-4">
+                   <div className="max-h-80 overflow-y-auto rounded-lg border border-slate-800/50 bg-slate-950/30 p-2">
+                      <ul className="space-y-1">
+                        {group.entities.map(e => (
+                          <li key={e} className="text-[10px] text-slate-400 font-mono truncate py-1 hover:text-cyan-400 transition-colors cursor-default">
+                            {e}
+                          </li>
+                        ))}
+                      </ul>
+                   </div>
+
+                   <div className="flex items-center gap-4 text-[10px] text-slate-500 uppercase font-bold px-1">
+                      <div className="flex items-center gap-1.5">
+                        <Database className="w-3 h-3" />
+                        Provider: {group.name}
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}

@@ -1,27 +1,30 @@
+import { createHash } from 'node:crypto';
+import type { Socket } from 'node:net';
+import type { FastifyPluginCallback } from 'fastify';
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
-import session from '@fastify/session';
+import fastifySession from '@fastify/session';
 import * as dotenv from 'dotenv';
-import bcrypt from 'bcrypt';
-import { createDb, users, eq } from '@repo/database';
+import { createDb } from '@repo/database';
 import { healthRoutes } from './routes/health.js';
-import { userRoutes } from './routes/users.js';
-import { roleRoutes } from './routes/roles.js';
-import { pageRoutes } from './routes/pages.js';
-import { seedSystemDefaults } from './seed.js';
-import { rbacHook } from './middleware/rbac.js';
+import { setupRoutes } from './routes/setup.js';
+import { authRoutes } from './routes/auth.js';
+import { usersRoutes } from './routes/users.js';
+import { coreRoutes } from './routes/core.js';
+import { eventsRoutes } from './routes/events.js';
 
 dotenv.config();
 
 declare module 'fastify' {
   interface Session {
-    user: { id: string; username: string };
+    user?: { id: string; username: string; role: string };
   }
 }
 
 export async function buildApp(): Promise<FastifyInstance> {
   const fastify = Fastify({
+    trustProxy: true,
     logger: {
       transport: {
         target: 'pino-pretty',
@@ -33,206 +36,129 @@ export async function buildApp(): Promise<FastifyInstance> {
     },
   });
 
-  const db = createDb(process.env.DATABASE_URL!);
+  const databaseUrl = process.env.DATABASE_URL;
+  const db = databaseUrl ? createDb(databaseUrl) : null;
 
-  // Register Plugins
   await fastify.register(cors, {
     origin: true,
     credentials: true,
   });
 
   await fastify.register(cookie);
-  await fastify.register(session as any, {
-    secret: process.env.SESSION_SECRET || 'a-very-long-secret-key-that-is-at-least-32-chars',
-    cookie: { secure: false },
+  await fastify.register(fastifySession as unknown as FastifyPluginCallback<any>, {
+    secret: process.env.SESSION_SECRET || 'slidebolt-dev-secret-min-32-chars!!',
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    },
+    saveUninitialized: false,
   });
 
-  const INTERNAL_SERVICE_URL = process.env.INTERNAL_SERVICE_URL ||
-    (process.env.NODE_ENV === 'development'
-      ? 'http://localhost:39011'
-      : 'http://127.0.0.1:39011');
-
-  fastify.log.info(`Resolved INTERNAL_SERVICE_URL: ${INTERNAL_SERVICE_URL}`);
-
-  // Seed system roles + users on every startup
-  try {
-    await seedSystemDefaults(db, msg => fastify.log.info(msg));
-  } catch (err) {
-    fastify.log.error(`Failed to seed system defaults: ${err}`);
-  }
-
-  // Auth Routes (public — no RBAC)
-  fastify.post('/api/login', async (request, reply) => {
-    const { username, password } = request.body as any;
-    const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
-
-    if (user && await bcrypt.compare(password, user.password)) {
-      request.session.user = { id: user.id, username: user.username };
-      return { status: 'success', user: { id: user.id, username: user.username } };
-    }
-
-    return reply.code(401).send({ error: 'Invalid credentials' });
-  });
-
-  fastify.post('/api/logout', async (request, reply) => {
-    await request.session.destroy();
-    return reply.code(204).send();
-  });
-
-  fastify.get('/api/me', async (request, reply) => {
-    if (!request.session.user) {
-      return reply.code(401).send({ error: 'Not authenticated' });
-    }
-    return { user: request.session.user };
-  });
-
-  // Register Routes
   await fastify.register(healthRoutes, { prefix: '/api' });
+  await fastify.register(setupRoutes, { prefix: '/api' });
+  await fastify.register(authRoutes, { prefix: '/api' });
+  await fastify.register(usersRoutes, { prefix: '/api' });
+  await fastify.register(coreRoutes, { prefix: '/api' });
+  await fastify.register(eventsRoutes);
 
-  // User + Role management (RBAC-protected: manage:User / manage:Role)
-  const rbac = rbacHook(db);
-  await fastify.register(userRoutes, { prefix: '/api', db });
-  await fastify.register(roleRoutes, { prefix: '/api', db });
-  await fastify.register(pageRoutes, { prefix: '/api', db });
+  fastify.get('/api/hello', async () => ({
+    message: 'hello world',
+    database: {
+      configured: Boolean(db),
+    },
+  }));
 
-  // Apply RBAC preHandler to all /api/users* and /api/roles* routes
-  fastify.addHook('preHandler', async (request, reply) => {
-    if (request.url.startsWith('/api/users') || request.url.startsWith('/api/roles')) {
-      await rbac(request, reply);
-    }
-  });
-
-  // Proxy routes (RBAC-enforced)
-  const proxyPaths = ['/api/plugins*', '/api/search*', '/api/schema*', '/api/batch*', '/api/journal*', '/api/history*', '/api/labels*'];
-
-  proxyPaths.forEach(path => {
-    fastify.all(path, { preHandler: rbac }, async (request, reply) => {
-      const url = `${INTERNAL_SERVICE_URL}${request.url}`;
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5000);
-
-        const fetchOptions: RequestInit = {
-          method: request.method,
-          headers: {
-            'Content-Type': 'application/json',
-            // Forward Authorization header from incoming request to the proxied request
-            ...(request.headers.authorization && { 'Authorization': request.headers.authorization }),
-            // Add any other headers you want to forward, e.g., for tracing or debugging
-            // 'x-request-id': request.headers['x-request-id'],
-          },
-          signal: controller.signal,
-        };
-        fastify.log.info(`[proxy] Incoming Authorization: ${request.headers.authorization}`);
-        fastify.log.info(`[proxy] Outgoing Headers: ${JSON.stringify(fetchOptions.headers)}`);
-
-        if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) && request.body) {
-          fetchOptions.body = JSON.stringify(request.body);
-        }
-
-        const response = await fetch(url, fetchOptions);
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          fastify.log.error(`Internal service error (${path}): ${response.status} ${errorText}`);
-          return reply.code(response.status).send({ error: 'Internal service error', details: errorText });
-        }
-
-        const data = await response.json();
-        return reply.code(response.status).send(data);
-      } catch (err) {
-        fastify.log.error(`Proxy failure (${path}): ${err instanceof Error ? err.message : String(err)}`);
-        return reply.code(500).send({
-          error: 'Failed to connect to internal gateway',
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    });
-  });
-
-  fastify.get('/api/info', async () => {
-    let coreVersion = 'unknown';
-    try {
-      const res = await fetch(`${INTERNAL_SERVICE_URL}/_internal/runtime`);
-      if (res.ok) {
-        const runtime = await res.json() as any;
-        coreVersion = runtime.version || 'unknown';
-      }
-    } catch {}
-    return {
-      name: 'SlideBolt',
-      description: 'Unified interface for Plugin, Device, and Entity management.',
-      version: process.env.APP_VERSION || 'dev',
-      coreVersion,
-    };
-  });
-
-  // Browser-facing SSE fan-out endpoint
-  const browserSubscribers = new Set<(line: string) => void>();
-
-  fastify.get('/api/topics/subscribe', async (request, reply) => {
-    reply.raw.setHeader('Content-Type', 'text/event-stream');
-    reply.raw.setHeader('Cache-Control', 'no-cache');
-    reply.raw.setHeader('Connection', 'keep-alive');
-    reply.raw.setHeader('X-Accel-Buffering', 'no');
-    reply.raw.flushHeaders();
-
-    const send = (line: string) => {
-      reply.raw.write(line);
-    };
-    browserSubscribers.add(send);
-    request.raw.on('close', () => browserSubscribers.delete(send));
-  });
-
-  startTopicStream(INTERNAL_SERVICE_URL, fastify, browserSubscribers);
+  registerWebSocketLayer(fastify);
 
   return fastify;
 }
 
-function startTopicStream(
-  coreUrl: string,
-  fastify: FastifyInstance,
-  browserSubscribers: Set<(line: string) => void>,
-) {
-  const connect = async () => {
-    try {
-      const res = await fetch(`${coreUrl}/api/topics/subscribe`);
-      if (!res.ok || !res.body) {
-        throw new Error(`SSE connect failed: ${res.status}`);
-      }
-      fastify.log.info('[topics] connected to core event stream');
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const msg = JSON.parse(line.slice(6));
-            if (msg.type === 'device') {
-              fastify.log.info(`[topics] device changed: plugin=${msg.plugin_id} device=${msg.device_id}`);
-            } else if (msg.type === 'entity') {
-              fastify.log.info(`[topics] entity changed: plugin=${msg.plugin_id} device=${msg.device_id} entity=${msg.entity_id}`);
-            }
-            // Fan out to all connected browser clients
-            const sseLine = `data: ${line.slice(6)}\n\n`;
-            for (const send of browserSubscribers) {
-              send(sseLine);
-            }
-          } catch {}
-        }
-      }
-      throw new Error('stream ended');
-    } catch (err) {
-      fastify.log.warn(`[topics] disconnected: ${err instanceof Error ? err.message : String(err)}, reconnecting in 3s`);
+function registerWebSocketLayer(fastify: FastifyInstance) {
+  fastify.server.on('upgrade', (request, socket) => {
+    const { url, headers } = request;
+    if (url !== '/ws' || headers.upgrade?.toLowerCase() !== 'websocket') {
+      socket.destroy();
+      return;
     }
-    setTimeout(connect, 3000);
-  };
-  connect();
+
+    const websocketKey = headers['sec-websocket-key'];
+    if (typeof websocketKey !== 'string') {
+      socket.destroy();
+      return;
+    }
+
+    const acceptKey = createHash('sha1')
+      .update(`${websocketKey}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest('base64');
+
+    socket.write(
+      [
+        'HTTP/1.1 101 Switching Protocols',
+        'Upgrade: websocket',
+        'Connection: Upgrade',
+        `Sec-WebSocket-Accept: ${acceptKey}`,
+        '',
+        '',
+      ].join('\r\n')
+    );
+
+    attachWebSocketClient(socket as Socket, fastify);
+  });
+}
+
+function attachWebSocketClient(socket: Socket, fastify: FastifyInstance) {
+  sendWebSocketText(
+    socket,
+    JSON.stringify({
+      type: 'welcome',
+      message: 'WebSocket connection established',
+      timestamp: new Date().toISOString(),
+    })
+  );
+
+  const heartbeat = setInterval(() => {
+    if (socket.destroyed) {
+      clearInterval(heartbeat);
+      return;
+    }
+
+    sendWebSocketText(
+      socket,
+      JSON.stringify({
+        type: 'heartbeat',
+        message: 'hello from websocket',
+        timestamp: new Date().toISOString(),
+      })
+    );
+  }, 30000);
+
+  socket.on('data', (buffer) => {
+    const opcode = buffer[0] & 0x0f;
+    if (opcode === 0x8) {
+      socket.end();
+    }
+  });
+
+  socket.on('close', () => clearInterval(heartbeat));
+  socket.on('end', () => clearInterval(heartbeat));
+  socket.on('error', (error) => {
+    clearInterval(heartbeat);
+    fastify.log.warn(`WebSocket client error: ${error.message}`);
+  });
+}
+
+function sendWebSocketText(socket: Socket, payload: string) {
+  const message = Buffer.from(payload);
+
+  if (message.length > 125) {
+    throw new Error('WebSocket payload too large for the minimal server implementation');
+  }
+
+  const frame = Buffer.alloc(2 + message.length);
+  frame[0] = 0x81;
+  frame[1] = message.length;
+  message.copy(frame, 2);
+  socket.write(frame);
 }
