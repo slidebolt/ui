@@ -19,12 +19,12 @@
     "lint": "echo 'no lint for database'"
   },
   "devDependencies": {
-    "@types/pg": "^8.16.0",
-    "drizzle-kit": "^0.31.9",
-    "typescript": "^5.2.2"
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.1",
-    "pg": "^8.19.0"
+    "drizzle-orm": "^0.45.4",
+    "pg": "^8.23.1"
   }
 }
