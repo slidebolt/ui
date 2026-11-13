@@ -4,9 +4,9 @@ import { coreCommand, coreGet, isStale } from '../lib/core';
 import { commandDefinition, type CommandField } from '../lib/commands';
 import { useEntity } from '../store/entityStore';
 
-type Props = { entityKey: string };
+type Props = { entityKey: string; variant?: 'card' | 'row' };
 
-export function EntityCard({ entityKey }: Props) {
+export function EntityCard({ entityKey, variant = 'card' }: Props) {
   const entity = useEntity(entityKey);
   const [expanded, setExpanded] = useState(false);
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
@@ -39,7 +39,7 @@ export function EntityCard({ entityKey }: Props) {
   const immediate = commands.filter(command => !(commandDefinition(command).fields?.length));
   const configured = commands.filter(command => commandDefinition(command).fields?.length);
 
-  return <article className="entity-card">
+  return <article className={`entity-card ${variant === 'row' ? 'entity-row-card' : ''}`}>
     <header className="flex items-start gap-3">
       <div className={`entity-icon ${data.status?.health === 'error' || data.status?.health === 'unavailable' ? 'entity-icon-error' : ''}`}><CircleDot className="h-4 w-4" /></div>
       <div className="min-w-0 flex-1">

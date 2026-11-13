@@ -6,6 +6,7 @@ import { Login } from './components/Login';
 import { CoreSync } from './components/CoreSync';
 import Layout from './components/Layout';
 import PluginBrowser from './pages/PluginBrowser';
+import CapabilityPage from './pages/CapabilityPage';
 
 type SetupStatus = { connected: boolean; coreApiUrl: string };
 type UsersStatus = { hasUsers: boolean };
@@ -81,10 +82,15 @@ export default function App() {
       <CoreSync />
       <Routes>
         <Route path="/" element={<Layout user={user} onLogout={logout} />}>
-          <Route index element={<PluginBrowser />} />
+          <Route index element={<Navigate to="/live-tv" replace />} />
+          <Route path="live-tv" element={<CapabilityPage kind="live-tv" />} />
+          <Route path="libraries" element={<CapabilityPage kind="libraries" />} />
+          <Route path="recordings" element={<CapabilityPage kind="recordings" />} />
+          <Route path="sessions" element={<CapabilityPage kind="sessions" />} />
+          <Route path="devices" element={<PluginBrowser />} />
           <Route path="plugins/:plugin" element={<PluginBrowser />} />
           <Route path="plugins/:plugin/:device" element={<PluginBrowser />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/live-tv" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

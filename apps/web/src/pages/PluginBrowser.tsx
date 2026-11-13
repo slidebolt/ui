@@ -32,7 +32,7 @@ export default function PluginBrowser() {
   const selectedPlugin = inventory.find(item => item.id === requestedPlugin) ?? inventory[0];
   const requestedDevice = deviceParam ? decodeURIComponent(deviceParam) : '';
   const selectedDevice = selectedPlugin?.devices.find(item => item.key === requestedDevice) ?? selectedPlugin?.devices[0];
-  const selectedEntities = useMemo(() => selectedDevice ? entitiesForDevice(selectedPlugin?.entities ?? [], selectedDevice) : [], [selectedDevice, selectedPlugin, entities]);
+  const selectedEntities = useMemo(() => selectedDevice ? entitiesForDevice(selectedPlugin?.entities ?? [], selectedDevice).filter(entity => !isCapabilityEntity(entity.data.type)) : [], [selectedDevice, selectedPlugin, entities]);
 
   useEffect(() => {
     if (loading || !selectedPlugin) return;
@@ -69,11 +69,11 @@ export default function PluginBrowser() {
     </aside>
 
     <aside className="browser-pane device-pane">
-      <button className="mobile-back" onClick={() => navigate('/')}><ChevronLeft className="h-4 w-4" />Plugins</button>
+      <button className="mobile-back" onClick={() => navigate('/devices')}><ChevronLeft className="h-4 w-4" />Plugins</button>
       <PaneHeader icon={Server} title={cleanPluginName(selectedPlugin.id)} count={selectedPlugin.devices.length} subtitle="Devices" />
       <SearchBox value={searchParams.get('devices') ?? ''} onChange={value => setQuery('devices', value)} placeholder="Find a device" />
       <div className="pane-scroll">{visibleDevices.map(device => {
-        const count = entitiesForDevice(selectedPlugin.entities, device).length;
+        const count = entitiesForDevice(selectedPlugin.entities, device).filter(entity => !isCapabilityEntity(entity.data.type)).length;
         const health = isStale(device.data.status) ? 'stale' : device.data.status?.health;
         return <button key={device.key} onClick={() => selectDevice(device.key)} className={`device-row ${device.key === selectedDevice?.key ? 'selected' : ''}`}>
           <span className="row-icon"><Server className="h-4 w-4" /></span><span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-medium">{device.data.name || device.data.id}</span><span className="mt-1 block truncate font-mono text-[10px] text-slate-600">{device.data.id}</span></span><span className="flex flex-col items-end gap-1"><HealthLabel health={health} /><span className="text-[10px] text-slate-600">{count}</span></span>
@@ -109,3 +109,4 @@ function HealthLabel({ health = 'unknown' }: { health?: string | null }) { const
 function EmptyPane({ text }: { text: string }) { return <p className="p-8 text-center text-xs text-slate-600">{text}</p>; }
 function Centered({ icon: Icon, title, detail }: { icon: typeof Puzzle; title: string; detail: string }) { return <div className="flex h-full items-center justify-center p-8"><div className="max-w-sm text-center"><Icon className="mx-auto h-8 w-8 text-cyan-500" /><h1 className="mt-4 text-lg font-semibold text-white">{title}</h1><p className="mt-2 text-sm text-slate-500">{detail}</p></div></div>; }
 function cleanPluginName(id: string) { return id.replace(/^plugin-/, '').replaceAll('-', ' '); }
+function isCapabilityEntity(type: string) { return ['tv_channel', 'media_library', 'tv_recording', 'tv_recording_rule', 'recording_file', 'media_session'].includes(type); }
