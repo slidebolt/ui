@@ -52,6 +52,20 @@ export async function coreRoutes(fastify: FastifyInstance, _options: FastifyPlug
     return safeJson(res, reply);
   });
 
+  fastify.get('/core/runtime/components', async (_req, reply) => {
+    return safeJson(await coreRequest('/runtime/components'), reply);
+  });
+
+  fastify.get('/core/logs', async (req, reply) => {
+    const query = new URLSearchParams(req.query as Record<string, string>).toString();
+    return safeJson(await coreRequest(`/logs${query ? `?${query}` : ''}`), reply);
+  });
+
+  fastify.get('/core/logs/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    return safeJson(await coreRequest(`/logs/${encodeURIComponent(id)}`), reply);
+  });
+
   fastify.get('/core/media/catalog/:provider/:server/:library', async (req, reply) => {
     const { provider, server, library } = req.params as Record<string, string>;
     const query = new URLSearchParams(req.query as Record<string, string>).toString();

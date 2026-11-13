@@ -5,14 +5,13 @@ import { CreateAdmin } from './components/CreateAdmin';
 import { Login } from './components/Login';
 import { CoreSync } from './components/CoreSync';
 import Layout from './components/Layout';
-import Devices from './pages/Devices';
-import Entities from './pages/Entities';
 import Scripts from './pages/Scripts';
 import Queries from './pages/Queries';
-import Plugins from './pages/Plugins';
 import Tokens from './pages/Tokens';
-import Stream from './pages/Stream';
 import Media from './pages/Media';
+import Dashboard from './pages/Dashboard';
+import Explorer from './pages/Explorer';
+import Logs from './pages/Logs';
 
 type SetupStatus = { connected: boolean; coreApiUrl: string };
 type UsersStatus = { hasUsers: boolean };
@@ -89,30 +88,21 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Layout user={user} onLogout={logout} />}>
           <Route index element={<Dashboard />} />
-          <Route path="devices" element={<Devices />} />
-          <Route path="entities" element={<Entities />} />
+          <Route path="explore" element={<Explorer />} />
+          <Route path="explore/:kind/:key" element={<Explorer />} />
+          <Route path="devices" element={<Navigate to="/explore" replace />} />
+          <Route path="entities" element={<Navigate to="/explore" replace />} />
           <Route path="scripts" element={<Scripts />} />
           <Route path="queries" element={<Queries />} />
-          <Route path="plugins" element={<Plugins />} />
+          <Route path="plugins" element={<Navigate to="/explore" replace />} />
           <Route path="tokens" element={<Tokens />} />
-          <Route path="stream" element={<Stream />} />
+          <Route path="logs" element={<Logs />} />
+          <Route path="stream" element={<Navigate to="/logs" replace />} />
           <Route path="media" element={<Media />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>
-  );
-}
-
-function Dashboard() {
-  return (
-    <div className="space-y-4">
-      <div>
-        <p className="text-xs uppercase tracking-[0.3em] text-cyan-400 font-semibold">Overview</p>
-        <h1 className="text-2xl font-semibold text-slate-100 mt-1">Dashboard</h1>
-      </div>
-      <p className="text-slate-500 text-sm">Select a section from the sidebar to get started.</p>
-    </div>
   );
 }
 

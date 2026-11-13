@@ -2,13 +2,11 @@ import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Server,
-  Zap,
+  Boxes,
   Code2,
   Search,
-  Puzzle,
   KeyRound,
-  Radio,
+  ScrollText,
   Clapperboard,
   Menu,
   LogOut,
@@ -23,13 +21,11 @@ type Props = {
 
 const navItems = [
   { label: 'Dashboard', path: '/',        icon: LayoutDashboard },
-  { label: 'Devices',   path: '/devices', icon: Server },
-  { label: 'Entities',  path: '/entities',icon: Zap },
+  { label: 'Explorer',  path: '/explore', icon: Boxes },
   { label: 'Scripts',   path: '/scripts', icon: Code2 },
   { label: 'Queries',   path: '/queries', icon: Search },
-  { label: 'Plugins',   path: '/plugins', icon: Puzzle },
   { label: 'Tokens',    path: '/tokens',  icon: KeyRound },
-  { label: 'Stream',    path: '/stream',  icon: Radio },
+  { label: 'Logs',      path: '/logs',    icon: ScrollText },
   { label: 'Media',     path: '/media',   icon: Clapperboard },
 ];
 

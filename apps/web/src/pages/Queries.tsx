@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useEntities, Entity as EntityType } from '../store/entityStore';
 import { Entity } from '../components/Entity';
-import { matchesQuery, QueryData } from '../utils/query-matcher';
+import { QueryData } from '../utils/query-matcher';
 import { 
   ChevronDown, 
   ChevronRight, 
@@ -76,7 +76,6 @@ export default function Queries() {
               <QueryRow 
                 key={e.key} 
                 queryEntity={e} 
-                allEntities={allEntities}
                 isExpanded={expandedKey === e.key}
                 onToggle={() => setExpandedKey(expandedKey === e.key ? null : e.key)}
               />
@@ -91,17 +90,21 @@ export default function Queries() {
   );
 }
 
-function QueryRow({ queryEntity, allEntities, isExpanded, onToggle }: { 
+function QueryRow({ queryEntity, isExpanded, onToggle }: {
   queryEntity: { key: string, data: QueryData }, 
-  allEntities: EntityType[],
   isExpanded: boolean, 
   onToggle: () => void 
 }) {
   const { data, key } = queryEntity;
-  
-  const matchedEntities = useMemo(() => {
-    return allEntities.filter(ent => matchesQuery(ent.key, ent.data, data.query));
-  }, [allEntities, data.query]);
+  const [matchedEntities, setMatchedEntities] = useState<EntityType[]>([]);
+  const [queryError, setQueryError] = useState('');
+  const [duration, setDuration] = useState<number | null>(null);
+  useEffect(() => {
+    const started = performance.now();
+    fetch('/api/core/query', { method: 'POST', credentials: 'same-origin', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data.query) })
+      .then(async response => { if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || 'Query failed'); return response.json(); })
+      .then(setMatchedEntities).catch(error => setQueryError(error.message)).finally(() => setDuration(performance.now() - started));
+  }, [data.query]);
 
   const count = matchedEntities.length;
 
@@ -180,6 +183,7 @@ function QueryRow({ queryEntity, allEntities, isExpanded, onToggle }: {
                       No entities match this query.
                     </div>
                   )}
+                  {queryError && <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-xs text-red-400">{queryError}</div>}
                 </div>
               </div>
 
@@ -191,7 +195,7 @@ function QueryRow({ queryEntity, allEntities, isExpanded, onToggle }: {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Database className="w-3 h-3" />
-                  Live Sync (Global Store)
+                  Authoritative API {duration !== null ? `· ${duration.toFixed(0)} ms` : ''}
                 </div>
               </div>
             </div>

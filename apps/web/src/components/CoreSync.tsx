@@ -9,6 +9,8 @@ import { entityStore, Entity, EntityData } from '../store/entityStore';
  */
 export function CoreSync() {
   useCoreEvents('>', (event) => {
+    if (event.type === 'connected' || event.type === 'snapshot') entityStore.setConnection('connected');
+    if (event.type === 'error' || event.type === 'close') entityStore.setConnection('disconnected');
     switch (event.type) {
       case 'snapshot':
         if (event.items) {

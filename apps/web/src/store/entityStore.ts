@@ -6,9 +6,20 @@ export type EntityData = {
   plugin: string;
   deviceID: string;
   type: string;
-  labels: Record<string, string[]>;
+  labels?: Record<string, string[]>;
+  profile?: Record<string, unknown>;
+  meta?: Record<string, unknown>;
   state?: Record<string, any>;
   commands?: string[];
+  target?: unknown;
+  status?: ResourceStatus;
+};
+
+export type ResourceStatus = {
+  health: 'healthy' | 'degraded' | 'unavailable' | 'error' | 'unknown' | string;
+  observedAt?: string;
+  staleAfterSeconds?: number;
+  message?: string;
 };
 
 export type Entity = { key: string; data: EntityData };
@@ -18,6 +29,7 @@ type Listener = () => void;
 class EntityStore {
   private entities = new Map<string, Entity>();
   private listeners = new Set<Listener>();
+  private connection: 'connecting' | 'connected' | 'disconnected' = 'connecting';
 
   subscribe = (listener: Listener) => {
     this.listeners.add(listener);
@@ -25,6 +37,14 @@ class EntityStore {
   };
 
   getSnapshot = () => this.entities;
+  getConnectionSnapshot = () => this.connection;
+
+  setConnection(connection: 'connecting' | 'connected' | 'disconnected') {
+    if (this.connection !== connection) {
+      this.connection = connection;
+      this.emit();
+    }
+  }
 
   // Selective snapshot for a single entity to minimize re-renders
   getEntitySnapshot = (key: string) => {
@@ -63,6 +83,10 @@ export function useEntities() {
     entityStore.getSnapshot
   );
   return Array.from(entities.values());
+}
+
+export function useCoreConnection() {
+  return useSyncExternalStore(entityStore.subscribe, entityStore.getConnectionSnapshot);
 }
 
 /**

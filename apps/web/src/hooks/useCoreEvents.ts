@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 
 export type CoreEventType = 'connected' | 'snapshot' | 'upsert' | 'remove' | 'error' | 'close';
 
@@ -24,9 +24,16 @@ export function useCoreEvents(pattern: string, onEvent: Handler, enabled = true)
   const handlerRef = useRef<Handler>(onEvent);
   handlerRef.current = onEvent;
 
-  const connect = useCallback(() => {
-    const url = `/api/events?pattern=${encodeURIComponent(pattern)}`;
-    const es = new EventSource(url, { withCredentials: true });
+  useEffect(() => {
+    if (!enabled) return;
+    let active = true;
+    let es: EventSource | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+
+    const connect = () => {
+      if (!active) return;
+      const url = `/api/events?pattern=${encodeURIComponent(pattern)}`;
+      es = new EventSource(url, { withCredentials: true });
 
     const handle = (type: CoreEventType) => (e: MessageEvent) => {
       try {
@@ -36,25 +43,24 @@ export function useCoreEvents(pattern: string, onEvent: Handler, enabled = true)
       }
     };
 
-    es.addEventListener('connected', handle('connected'));
-    es.addEventListener('snapshot', handle('snapshot'));
-    es.addEventListener('upsert', handle('upsert'));
-    es.addEventListener('remove', handle('remove'));
-    es.addEventListener('error', handle('error'));
-    es.addEventListener('close', handle('close'));
+      es.addEventListener('connected', handle('connected'));
+      es.addEventListener('snapshot', handle('snapshot'));
+      es.addEventListener('upsert', handle('upsert'));
+      es.addEventListener('remove', handle('remove'));
+      es.addEventListener('error', handle('error'));
+      es.addEventListener('close', handle('close'));
 
-    es.onerror = () => {
-      es.close();
-      // Reconnect after 3s if the connection drops
-      setTimeout(connect, 3000);
+      es.onerror = () => {
+        handlerRef.current({ type: 'error', message: 'Event stream disconnected' });
+        es?.close();
+        retry = setTimeout(connect, 3000);
+      };
     };
-
-    return es;
-  }, [pattern]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    const es = connect();
-    return () => es.close();
-  }, [connect, enabled]);
+    connect();
+    return () => {
+      active = false;
+      if (retry) clearTimeout(retry);
+      es?.close();
+    };
+  }, [pattern, enabled]);
 }
