@@ -112,10 +112,24 @@ export function getUIProperties(entity: EntityData): EntityUIProps {
     }
 
     case 'recording_file':
-      props.isActive = state.status === 'recording';
-      props.value = state.status || 'unknown';
+      props.isActive = state.status === 'recording' || state.status === 'encoding';
+      if (state.status === 'recording') {
+        props.value = 'Recording';
+      } else if (state.status === 'encoding') {
+        props.value = state.sourceBytes
+          ? `Encoding ${formatBytes(state.sourceBytes)} source`
+          : 'Encoding';
+      } else if (state.status === 'completed') {
+        props.value = state.bytesWritten
+          ? `Completed · ${formatBytes(state.bytesWritten)}`
+          : 'Completed';
+      } else if (state.status === 'failed') {
+        props.value = state.error ? `Failed · ${state.error}` : 'Failed';
+      } else {
+        props.value = state.status || 'unknown';
+      }
       props.icon = FileVideo;
-      props.activeColorClass = 'text-red-400';
+      props.activeColorClass = state.status === 'encoding' ? 'text-amber-400' : 'text-red-400';
       break;
 
     case 'timer':
@@ -136,6 +150,18 @@ export function getUIProperties(entity: EntityData): EntityUIProps {
   }
 
   return props;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unit = -1;
+  do {
+    value /= 1024;
+    unit += 1;
+  } while (value >= 1024 && unit < units.length - 1);
+  return `${value.toFixed(value >= 10 ? 1 : 2)} ${units[unit]}`;
 }
 
 function getSensorIcon(unitOrId: string) {
