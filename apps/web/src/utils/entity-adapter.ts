@@ -12,7 +12,11 @@ import {
   HelpCircle,
   Hash,
   Clock,
-  Navigation
+  Navigation,
+  Tv,
+  CircleDot,
+  FileVideo,
+  Timer
 } from 'lucide-react';
 import { EntityData } from '../store/entityStore';
 
@@ -88,6 +92,42 @@ export function getUIProperties(entity: EntityData): EntityUIProps {
       props.value = 'Press';
       props.icon = Zap;
       props.isActive = false;
+      break;
+
+    case 'recording_switch':
+      props.isActive = state.power === true;
+      props.value = props.isActive ? `Recording${state.channel ? ` ${state.channel}` : ''}` : 'Not recording';
+      props.icon = CircleDot;
+      props.activeColorClass = 'text-red-400';
+      break;
+
+    case 'tv_channel': {
+      const current = state.currentProgram;
+      props.isActive = state.available === true;
+      props.value = current
+        ? `${current.title}${current.episodeTitle ? ` — ${current.episodeTitle}` : ''}`
+        : 'No guide data';
+      props.icon = Tv;
+      break;
+    }
+
+    case 'recording_file':
+      props.isActive = state.status === 'recording';
+      props.value = state.status || 'unknown';
+      props.icon = FileVideo;
+      props.activeColorClass = 'text-red-400';
+      break;
+
+    case 'timer':
+      props.isActive = state.enabled === true;
+      props.value = state.enabled ? (state.nextOnAt ? `Next ${state.nextOnAt}` : 'Enabled') : 'Disabled';
+      props.icon = Timer;
+      break;
+
+    case 'tv_recording_rule':
+      props.isActive = state.enabled === true;
+      props.value = props.isActive ? 'Enabled' : 'Disabled';
+      props.icon = Timer;
       break;
 
     default:

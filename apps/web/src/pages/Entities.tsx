@@ -175,14 +175,15 @@ function EntityRowContent({ isExpanded, onToggle, sendCommand }: any) {
                 
                 <div className="grid gap-6 p-4 rounded-xl bg-slate-950/50 border border-slate-800">
                   {/* Primary Toggle for light/switch */}
-                  {(data.type === 'switch' || data.type === 'light') && (
+                  {(data.type === 'switch' || data.type === 'light' || data.type === 'recording_switch') && (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-slate-400">Power</span>
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
                           const isOn = ui.isActive;
-                          sendCommand(isOn ? `${data.type}_turn_off` : `${data.type}_turn_on`);
+                          const commandType = data.type === 'recording_switch' ? 'switch' : data.type;
+                          sendCommand(isOn ? `${commandType}_turn_off` : `${commandType}_turn_on`);
                         }}
                         className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border ${
                           ui.isActive 
@@ -217,6 +218,19 @@ function EntityRowContent({ isExpanded, onToggle, sendCommand }: any) {
                         }}
                         className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                       />
+                    </div>
+                  )}
+
+                  {data.type === 'select' && Array.isArray(state.options) && (
+                    <div className="space-y-2">
+                      <div className="text-[10px] font-bold text-slate-500 uppercase">Option</div>
+                      <select
+                        value={state.option ?? ''}
+                        onChange={(e) => sendCommand('select_option', { option: e.target.value })}
+                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-200"
+                      >
+                        {state.options.map((option: string) => <option key={option} value={option}>{option}</option>)}
+                      </select>
                     </div>
                   )}
 
