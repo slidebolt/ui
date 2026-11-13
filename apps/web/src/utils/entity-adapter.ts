@@ -17,6 +17,7 @@ import {
   CircleDot,
   FileVideo,
   Timer
+  ,Server, Library, Play, Users
 } from 'lucide-react';
 import { EntityData } from '../store/entityStore';
 
@@ -142,6 +143,42 @@ export function getUIProperties(entity: EntityData): EntityUIProps {
       props.isActive = state.enabled === true;
       props.value = props.isActive ? 'Enabled' : 'Disabled';
       props.icon = Timer;
+      break;
+
+    case 'media_provider_connection':
+      props.isActive = state.status === 'connected';
+      props.value = state.status || 'disconnected';
+      props.icon = Server;
+      break;
+
+    case 'media_server':
+      props.isActive = state.connected === true;
+      props.value = state.connected ? `${state.name || 'Server'} online` : 'Offline';
+      props.icon = Server;
+      break;
+
+    case 'media_library':
+      props.isActive = state.canBrowse === true;
+      props.value = `${state.kind || 'media'}${state.itemCount ? ` · ${state.itemCount} items` : ''}`;
+      props.icon = Library;
+      break;
+
+    case 'media_player':
+      props.isActive = state.state === 'playing';
+      props.value = state.mediaTitle ? `${state.state} · ${state.mediaTitle}` : (state.state || 'idle');
+      props.icon = Play;
+      break;
+
+    case 'media_session':
+      props.isActive = state.state === 'playing';
+      props.value = state.title ? `${state.state} · ${state.title}` : (state.state || 'idle');
+      props.icon = Users;
+      break;
+
+    case 'tv_recording':
+      props.isActive = state.status === 'recording';
+      props.value = `${state.status || 'scheduled'}${state.program?.title ? ` · ${state.program.title}` : ''}`;
+      props.icon = FileVideo;
       break;
 
     default:

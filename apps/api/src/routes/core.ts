@@ -52,6 +52,20 @@ export async function coreRoutes(fastify: FastifyInstance, _options: FastifyPlug
     return safeJson(res, reply);
   });
 
+  fastify.get('/core/media/catalog/:provider/:server/:library', async (req, reply) => {
+    const { provider, server, library } = req.params as Record<string, string>;
+    const query = new URLSearchParams(req.query as Record<string, string>).toString();
+    const path = `/media/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(library)}${query ? `?${query}` : ''}`;
+    return safeJson(await coreRequest(path), reply);
+  });
+
+  fastify.get('/core/tv/guide/:provider/:server', async (req, reply) => {
+    const { provider, server } = req.params as Record<string, string>;
+    const query = new URLSearchParams(req.query as Record<string, string>).toString();
+    const path = `/tv/guide/${encodeURIComponent(provider)}/${encodeURIComponent(server)}${query ? `?${query}` : ''}`;
+    return safeJson(await coreRequest(path), reply);
+  });
+
   fastify.post('/core/query', async (req, reply) => {
     const res = await coreRequest('/query', {
       method: 'POST',

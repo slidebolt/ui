@@ -9,6 +9,7 @@ import {
   Puzzle,
   KeyRound,
   Radio,
+  Clapperboard,
   Menu,
   LogOut,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ const navItems = [
   { label: 'Plugins',   path: '/plugins', icon: Puzzle },
   { label: 'Tokens',    path: '/tokens',  icon: KeyRound },
   { label: 'Stream',    path: '/stream',  icon: Radio },
+  { label: 'Media',     path: '/media',   icon: Clapperboard },
 ];
 
 function Layout({ user, onLogout }: Props) {

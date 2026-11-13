@@ -12,6 +12,7 @@ import Queries from './pages/Queries';
 import Plugins from './pages/Plugins';
 import Tokens from './pages/Tokens';
 import Stream from './pages/Stream';
+import Media from './pages/Media';
 
 type SetupStatus = { connected: boolean; coreApiUrl: string };
 type UsersStatus = { hasUsers: boolean };
@@ -95,6 +96,7 @@ export default function App() {
           <Route path="plugins" element={<Plugins />} />
           <Route path="tokens" element={<Tokens />} />
           <Route path="stream" element={<Stream />} />
+          <Route path="media" element={<Media />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
