@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { isStale } from './core';
+import { coreGetArray, isStale } from './core';
 
 describe('isStale', () => {
   it('does not guess when freshness data is absent', () => {
@@ -12,5 +12,13 @@ describe('isStale', () => {
     vi.setSystemTime(new Date('2026-01-01T00:02:01Z'));
     expect(isStale({ health: 'healthy', observedAt: '2026-01-01T00:00:00Z', staleAfterSeconds: 120 })).toBe(true);
     vi.useRealTimers();
+  });
+});
+
+describe('coreGetArray', () => {
+  it('normalizes an empty Go slice encoded as null', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => null }));
+    await expect(coreGetArray('/logs')).resolves.toEqual([]);
+    vi.unstubAllGlobals();
   });
 });

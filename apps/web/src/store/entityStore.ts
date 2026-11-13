@@ -9,7 +9,7 @@ export type EntityData = {
   labels?: Record<string, string[]>;
   profile?: Record<string, unknown>;
   meta?: Record<string, unknown>;
-  state?: Record<string, any>;
+  state?: Record<string, unknown>;
   commands?: string[];
   target?: unknown;
   status?: ResourceStatus;
@@ -57,12 +57,15 @@ class EntityStore {
   }
 
   upsert(key: string, data: EntityData) {
+    this.entities = new Map(this.entities);
     this.entities.set(key, { key, data });
     this.emit();
   }
 
   remove(key: string) {
-    if (this.entities.delete(key)) {
+    if (this.entities.has(key)) {
+      this.entities = new Map(this.entities);
+      this.entities.delete(key);
       this.emit();
     }
   }

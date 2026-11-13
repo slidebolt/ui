@@ -49,6 +49,26 @@ export async function coreGet<T>(path: string, signal?: AbortSignal): Promise<T>
   return response.json() as Promise<T>;
 }
 
+// Go encodes a nil slice as JSON null. List consumers should still receive an
+// array so an empty result cannot crash rendering code.
+export async function coreGetArray<T>(path: string, signal?: AbortSignal): Promise<T[]> {
+  const value = await coreGet<T[] | null>(path, signal);
+  return Array.isArray(value) ? value : [];
+}
+
+export async function coreCommand(key: string, command: string, args: Record<string, unknown> = {}): Promise<void> {
+  const response = await fetch(`/api/core/entities/${encodeURIComponent(key)}/command`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command, args }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail || body.error || `Command failed (${response.status})`);
+  }
+}
+
 export function isStale(status?: ResourceStatus): boolean | null {
   if (!status?.observedAt || !status.staleAfterSeconds) return null;
   return Date.now() - new Date(status.observedAt).getTime() > status.staleAfterSeconds * 1000;

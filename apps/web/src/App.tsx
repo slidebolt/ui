@@ -5,13 +5,7 @@ import { CreateAdmin } from './components/CreateAdmin';
 import { Login } from './components/Login';
 import { CoreSync } from './components/CoreSync';
 import Layout from './components/Layout';
-import Scripts from './pages/Scripts';
-import Queries from './pages/Queries';
-import Tokens from './pages/Tokens';
-import Media from './pages/Media';
-import Dashboard from './pages/Dashboard';
-import Explorer from './pages/Explorer';
-import Logs from './pages/Logs';
+import PluginBrowser from './pages/PluginBrowser';
 
 type SetupStatus = { connected: boolean; coreApiUrl: string };
 type UsersStatus = { hasUsers: boolean };
@@ -87,18 +81,9 @@ export default function App() {
       <CoreSync />
       <Routes>
         <Route path="/" element={<Layout user={user} onLogout={logout} />}>
-          <Route index element={<Dashboard />} />
-          <Route path="explore" element={<Explorer />} />
-          <Route path="explore/:kind/:key" element={<Explorer />} />
-          <Route path="devices" element={<Navigate to="/explore" replace />} />
-          <Route path="entities" element={<Navigate to="/explore" replace />} />
-          <Route path="scripts" element={<Scripts />} />
-          <Route path="queries" element={<Queries />} />
-          <Route path="plugins" element={<Navigate to="/explore" replace />} />
-          <Route path="tokens" element={<Tokens />} />
-          <Route path="logs" element={<Logs />} />
-          <Route path="stream" element={<Navigate to="/logs" replace />} />
-          <Route path="media" element={<Media />} />
+          <Route index element={<PluginBrowser />} />
+          <Route path="plugins/:plugin" element={<PluginBrowser />} />
+          <Route path="plugins/:plugin/:device" element={<PluginBrowser />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
