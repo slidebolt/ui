@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { createDb, tokens, eq } from '@repo/database';
+import { createDb, tokens } from '@repo/database';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -21,18 +21,9 @@ export async function setupRoutes(fastify: FastifyInstance, options: FastifyPlug
         return { connected: false, coreApiUrl };
       }
 
-      // Validate the stored token is still accepted by the Core API
-      const storedToken = existingTokens[0];
-      const probe = await fetch(`${coreApiUrl}/tokens`, {
-        headers: { 'Authorization': `Bearer ${storedToken.token}` },
-      });
-
-      if (!probe.ok) {
-        // Token is stale — remove it so setup page reappears
-        await db.delete(tokens).where(eq(tokens.id, storedToken.id));
-        return { connected: false, coreApiUrl };
-      }
-
+      // The token is durable configuration. Do not delete it because Core may
+      // still be starting while the UI comes up. Proxy requests provide the
+      // authoritative authentication result once the runtime is ready.
       return { connected: true, coreApiUrl };
     } catch (error) {
       fastify.log.error(error);
