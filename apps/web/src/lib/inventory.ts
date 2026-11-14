@@ -62,8 +62,8 @@ export function pluginAssociationLabel(pluginID: string): string {
 const entitySections = [
   { id: 'live-tv', title: 'Live TV', kicker: 'Now and next', types: ['tv_channel', 'tv_tuner'] },
   { id: 'libraries', title: 'Libraries', kicker: 'Browse and search', types: ['media_library', 'media_server'] },
-  { id: 'scheduled', title: 'Scheduled recordings', kicker: 'Upcoming', types: ['tv_recording', 'tv_recording_rule'] },
-  { id: 'recordings', title: 'Recorded files', kicker: 'Capture history', types: ['recording_file', 'recording_switch'] },
+  { id: 'scheduled', title: 'Schedules', kicker: 'Upcoming actions', types: ['schedule', 'recording_rule'] },
+  { id: 'recordings', title: 'Recorders', kicker: 'Capture state', types: ['recorder'] },
   { id: 'sessions', title: 'Sessions', kicker: 'Active playback', types: ['media_session', 'media_player'] },
 ] as const;
 

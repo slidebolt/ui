@@ -79,8 +79,13 @@ export function EntityCard({ entityKey, variant = 'card' }: Props) {
   </article>;
 }
 
-type CatalogItem = { ref: { itemID: string }; kind: string; title: string; summary?: string; year?: number; season?: number; episode?: number };
+type CatalogItem = { ref: { itemID: string }; kind: string; title: string; metadata?: Record<string, unknown>; assets?: Array<{ kind: string; ref: string }> };
 type CatalogPage = { items: CatalogItem[] | null; total?: number; nextCursor?: string; error?: string };
+
+function metadataSummary(metadata?: Record<string, unknown>) {
+  if (!metadata) return '';
+  return Object.entries(metadata).filter(([key, value]) => key !== 'description' && value !== null && typeof value !== 'object').slice(0, 3).map(([key, value]) => `${key}: ${String(value)}`).join(' · ');
+}
 
 function CatalogDialog({ provider, name, state, onClose }: { provider: string; name: string; state: Record<string, unknown>; onClose: () => void }) {
   const [query, setQuery] = useState('');
@@ -108,7 +113,7 @@ function CatalogDialog({ provider, name, state, onClose }: { provider: string; n
       <form className="catalog-search" onSubmit={event => { event.preventDefault(); load(); }}><Search className="h-4 w-4" /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search this library" /><button disabled={busy} className="primary-button">{busy ? 'Loading…' : 'Browse'}</button></form>
       {error && <p className="mt-4 rounded-md bg-red-500/10 p-3 text-xs text-red-300">{error}</p>}
       {!page && !error && <button onClick={() => load()} className="catalog-empty"><BookOpen className="h-7 w-7" /><span>Load library contents</span></button>}
-      {page && <div className="catalog-results">{(page.items ?? []).map(item => <article key={item.ref.itemID} className="catalog-item"><div className="min-w-0"><h3>{item.title}</h3><p>{item.kind}{item.year ? ` · ${item.year}` : ''}{item.season ? ` · S${item.season}E${item.episode || 0}` : ''}</p>{item.summary && <p className="catalog-summary">{item.summary}</p>}</div></article>)}{!(page.items ?? []).length && <p className="p-8 text-center text-sm text-slate-500">No matching items.</p>}</div>}
+      {page && <div className="catalog-results">{(page.items ?? []).map(item => <article key={item.ref.itemID} className="catalog-item"><div className="min-w-0"><h3>{item.title}</h3><p>{item.kind}{metadataSummary(item.metadata) ? ` · ${metadataSummary(item.metadata)}` : ''}</p>{typeof item.metadata?.description === 'string' && <p className="catalog-summary">{item.metadata.description}</p>}</div></article>)}{!(page.items ?? []).length && <p className="p-8 text-center text-sm text-slate-500">No matching items.</p>}</div>}
       {page?.nextCursor && <button disabled={busy} onClick={() => load(page.nextCursor)} className="secondary-button mt-4 w-full">{busy ? 'Loading…' : 'Load more'}</button>}
     </section>
   </div>;
@@ -177,7 +182,8 @@ function stateSummary(type: string, state: Record<string, unknown>): { primary: 
   const program = state.currentProgram as Record<string, unknown> | undefined;
   if (type === 'tv_channel') return { primary: `${state.number ?? ''} ${state.name ?? ''}`.trim() || 'Channel', secondary: program ? `${program.title ?? 'Unknown program'}${program.episodeTitle ? ` — ${program.episodeTitle}` : ''}` : String(state.guideError || 'No current guide data') };
   if (type === 'media_library') return { primary: String(state.kind ?? 'mixed'), secondary: `${state.itemCount ?? 'Unknown'} items${state.lastError ? ` · ${state.lastError}` : ''}` };
-  if (type === 'recording_file' || type === 'tv_recording') return { primary: String(state.status ?? 'unknown'), secondary: String(state.relativePath ?? state.outputPath ?? state.path ?? '') || undefined };
+  if (type === 'recorder') return { primary: String(state.status ?? 'idle'), secondary: String((state.output as Record<string, unknown> | undefined)?.itemID ?? state.lastError ?? '') || undefined };
+  if (type === 'schedule') return { primary: state.enabled ? 'Enabled' : 'Disabled', secondary: `${Array.isArray(state.steps) ? state.steps.length : 0} actions` };
   if (type === 'media_provider_connection') return { primary: String(state.status ?? 'unknown'), secondary: String(state.lastError ?? state.claimURL ?? '') || undefined };
   for (const key of ['power','state','value','status','position','temperature','available','connected']) if (state[key] !== undefined) return { primary: formatValue(state[key]), secondary: state.lastError ? String(state.lastError) : undefined };
   const keys = Object.keys(state);

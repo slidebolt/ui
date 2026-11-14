@@ -109,4 +109,4 @@ function HealthLabel({ health = 'unknown' }: { health?: string | null }) { const
 function EmptyPane({ text }: { text: string }) { return <p className="p-8 text-center text-xs text-slate-600">{text}</p>; }
 function Centered({ icon: Icon, title, detail }: { icon: typeof Puzzle; title: string; detail: string }) { return <div className="flex h-full items-center justify-center p-8"><div className="max-w-sm text-center"><Icon className="mx-auto h-8 w-8 text-cyan-500" /><h1 className="mt-4 text-lg font-semibold text-white">{title}</h1><p className="mt-2 text-sm text-slate-500">{detail}</p></div></div>; }
 function cleanPluginName(id: string) { return id.replace(/^plugin-/, '').replaceAll('-', ' '); }
-function isCapabilityEntity(type: string) { return ['tv_channel', 'media_library', 'tv_recording', 'tv_recording_rule', 'recording_file', 'media_session'].includes(type); }
+function isCapabilityEntity(type: string) { return ['tv_channel', 'media_library', 'schedule', 'recording_rule', 'recorder', 'media_source', 'media_session'].includes(type); }

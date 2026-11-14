@@ -8,7 +8,7 @@ type Kind = 'live-tv' | 'libraries' | 'recordings' | 'sessions';
 const definitions: Record<Kind, { title: string; kicker: string; detail: string; types: string[]; icon: typeof Radio }> = {
   'live-tv': { title: 'Live TV', kicker: 'Channels and guide', detail: 'Current programming and recording controls across every television provider.', types: ['tv_channel'], icon: Radio },
   libraries: { title: 'Libraries', kicker: 'Media catalog', detail: 'Browse and search provider libraries without treating catalog items as devices.', types: ['media_library'], icon: BookOpen },
-  recordings: { title: 'Recordings', kicker: 'Schedule and history', detail: 'Scheduled airings, recurring rules, active captures, and completed files.', types: ['tv_recording', 'tv_recording_rule', 'recording_file', 'recording_switch'], icon: History },
+  recordings: { title: 'Recordings', kicker: 'Schedules and recorders', detail: 'Generic recording rules, scheduled actions, and active recorder capabilities.', types: ['schedule', 'recording_rule', 'recorder'], icon: History },
   sessions: { title: 'Sessions', kicker: 'Active playback', detail: 'Current media sessions and player state.', types: ['media_session', 'media_player'], icon: Clapperboard },
 };
 
