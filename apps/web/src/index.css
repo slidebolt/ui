@@ -92,6 +92,22 @@ button:disabled { cursor: not-allowed; opacity: .55; }
   .workspace-pane { padding: 16px; }
   .entity-grid { grid-template-columns: minmax(260px,1fr); }
 }
+
+.definition-coverage { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem; margin-bottom:2rem; }
+.definition-coverage article,.definition-card { border:1px solid rgb(30 41 59); border-radius:0.8rem; background:rgb(15 23 42 / .72); padding:1rem; }
+.definition-coverage strong { display:block; color:white; font-size:1.6rem; margin:.3rem 0; }
+.definition-coverage span,.definition-card>p,.definition-card dd { color:rgb(148 163 184); font-size:.85rem; }
+.definition-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:1rem; margin-bottom:2rem; }
+.definition-card header { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; }
+.definition-card h3 { color:white; font-size:1rem; font-weight:600; }
+.definition-card>p { margin:.7rem 0 1rem; }
+.definition-card dl { display:grid; grid-template-columns:max-content 1fr; gap:.35rem .8rem; font-size:.8rem; }
+.definition-card dt { color:rgb(100 116 139); }
+.definition-card details,.definition-coverage details { margin-top:.8rem; }
+.definition-card summary,.definition-coverage summary { display:flex; align-items:center; gap:.35rem; cursor:pointer; color:rgb(125 211 252); font-size:.78rem; }
+.definition-card pre,.definition-coverage pre { max-height:24rem; overflow:auto; margin-top:.6rem; border-radius:.5rem; background:rgb(2 6 23); padding:.75rem; color:rgb(203 213 225); font-size:.7rem; white-space:pre-wrap; }
+.definition-warning { color:rgb(253 186 116); border-color:rgb(124 45 18); }
+@media (max-width: 800px) { .definition-coverage { grid-template-columns:1fr; } }
 @media (max-width: 760px) {
   .app-header{min-height:104px;flex-wrap:wrap;padding:10px 12px}.app-nav{order:3;width:100%;height:38px;margin:0;justify-content:space-between}.app-nav-item{flex:1;justify-content:center}.app-nav-item span{display:inline}.connection-state{display:none}.capability-page{padding:12px}.capability-hero{flex-wrap:wrap}.capability-hero>.summary-chip{margin-left:64px}.entity-row-card{display:block}.entity-row-card>div.mt-4,.entity-row-card>button.mt-4{margin-top:12px}.entity-row-card>button.mt-4{border-top:1px solid #1e293b;padding-top:12px}
   .plugin-browser { display: block; height: 100%; min-height: 0; overflow: hidden; }

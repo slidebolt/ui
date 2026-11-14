@@ -52,6 +52,10 @@ export async function coreRoutes(fastify: FastifyInstance, _options: FastifyPlug
     return safeJson(res, reply);
   });
 
+  fastify.get('/core/definitions', async (_req, reply) => {
+    return safeJson(await coreRequest('/definitions'), reply);
+  });
+
   fastify.get('/core/runtime/components', async (_req, reply) => {
     return safeJson(await coreRequest('/runtime/components'), reply);
   });
