@@ -7,11 +7,27 @@ type Coverage = { total: number; resolved: number; unresolved: string[] };
 type Plugin = { id: string; state: string; definitions?: { name: string; description: string; deviceClasses?: Array<{ class: string; name: string; description: string; entityTypes?: string[] }>; entityTypes?: string[]; commands?: Array<{ action: string; name: string; description: string }>; extensions?: Array<{ type: string; name: string; description: string }> }; observedEntityTypes?: string[]; definitionError?: string };
 type Catalog = { schemaVersion: number; domain: { deviceSchema: unknown; entityTypes: Definition[]; commands: Definition[] }; plugins: Plugin[]; coverage: { devices: Coverage; entities: Coverage; commands: Coverage } };
 
+export function normalizeCatalog(value: Catalog): Catalog {
+  return {
+    ...value,
+    domain: {
+      ...value.domain,
+      entityTypes: Array.isArray(value.domain?.entityTypes) ? value.domain.entityTypes : [],
+      commands: Array.isArray(value.domain?.commands) ? value.domain.commands : [],
+    },
+    plugins: Array.isArray(value.plugins) ? value.plugins : [],
+    coverage: Object.fromEntries(Object.entries(value.coverage ?? {}).map(([name, section]) => [name, {
+      ...section,
+      unresolved: Array.isArray(section?.unresolved) ? section.unresolved : [],
+    }])) as Catalog['coverage'],
+  };
+}
+
 export default function DefinitionsPage() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
-  useEffect(() => { const controller = new AbortController(); coreGet<Catalog>('/definitions', controller.signal).then(setCatalog).catch(e => setError(String(e))); return () => controller.abort(); }, []);
+  useEffect(() => { const controller = new AbortController(); coreGet<Catalog>('/definitions', controller.signal).then(value => setCatalog(normalizeCatalog(value))).catch(e => setError(String(e))); return () => controller.abort(); }, []);
   const types = useMemo(() => catalog?.domain.entityTypes.filter(item => `${item.type} ${item.name} ${item.description} ${(item.producers ?? []).join(' ')}`.toLowerCase().includes(query.toLowerCase())) ?? [], [catalog, query]);
   if (error) return <main className="capability-page"><div className="workspace-empty"><AlertTriangle/><p>{error}</p></div></main>;
   if (!catalog) return <main className="capability-page"><div className="workspace-empty"><p>Loading serialized definitions…</p></div></main>;
