@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import PluginBrowser from './pages/PluginBrowser';
 import CapabilityPage from './pages/CapabilityPage';
 import DefinitionsPage from './pages/DefinitionsPage';
+import ChatPage from './pages/ChatPage';
 
 type SetupStatus = { connected: boolean; coreApiUrl: string };
 type UsersStatus = { hasUsers: boolean };
@@ -97,6 +98,7 @@ export default function App() {
           <Route path="sessions" element={<CapabilityPage kind="sessions" />} />
           <Route path="sessions/:provider" element={<CapabilityPage kind="sessions" />} />
           <Route path="sessions/:provider/:entity" element={<CapabilityPage kind="sessions" />} />
+          <Route path="chat" element={<ChatPage />} />
           <Route path="devices" element={<PluginBrowser />} />
           <Route path="definitions" element={<DefinitionsPage />} />
           <Route path="plugins/:plugin" element={<PluginBrowser />} />
