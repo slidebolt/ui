@@ -90,6 +90,7 @@ function CatalogWorkspace({ entity }: { entity: Entity }) {
     setBusy(true); setError('');
     try {
       const params = new URLSearchParams({ limit: '50' });
+	  if (state.kind === 'show') params.set('kind', 'show');
       if (requestedQuery.trim()) params.set('query', requestedQuery.trim());
       if (cursor) params.set('cursor', cursor);
       const next = normalizeCatalogPage(await coreGet<CatalogPage | { items: CatalogItem[] | null; total?: number; nextCursor?: string; error?: string }>(`/media/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(library)}?${params}`));
@@ -162,4 +163,4 @@ function sortEpisodes(items: CatalogItem[]) { return [...items].sort((a, b) => N
 export function normalizeCatalogPage(page: CatalogPage | { items: CatalogItem[] | null; total?: number; nextCursor?: string; error?: string }): CatalogPage { return { ...page, items: Array.isArray(page.items) ? page.items : [] }; }
 export function capabilityPath(kind: Kind, provider?: string, entity?: string) { return `/${kind}${provider ? `/${encodeURIComponent(provider)}` : ''}${entity ? `/${encodeURIComponent(entity)}` : ''}`; }
 export function catalogItemPath(provider: string, entity: string, item: string) { return `${capabilityPath('libraries', provider, entity)}/items/${encodeURIComponent(item)}`; }
-export function childCatalogPath(provider: string, server: string, library: string, parentID: string, cursor = '') { const params = new URLSearchParams({ parentID, kind: 'episode', limit: '200' }); if (cursor) params.set('cursor', cursor); return `/media/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(library)}?${params}`; }
+export function childCatalogPath(provider: string, server: string, library: string, parentID: string, cursor = '') { const params = new URLSearchParams({ parent: parentID, kind: 'episode', limit: '200' }); if (cursor) params.set('cursor', cursor); return `/media/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(library)}?${params}`; }

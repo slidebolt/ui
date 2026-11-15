@@ -8,7 +8,7 @@ describe('media navigation contract', () => {
   });
 
   it('builds a provider-neutral show episode request', () => {
-    expect(childCatalogPath('plugin-example', 'server one', 'TV Shows', 'show/one')).toBe('/media/catalog/plugin-example/server%20one/TV%20Shows?parentID=show%2Fone&kind=episode&limit=200');
+    expect(childCatalogPath('plugin-example', 'server one', 'TV Shows', 'show/one')).toBe('/media/catalog/plugin-example/server%20one/TV%20Shows?parent=show%2Fone&kind=episode&limit=200');
   });
 
   it('normalizes null catalog items before rendering', () => {
