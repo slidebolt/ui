@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeCatalog } from './DefinitionsPage';
+import { componentsWithResources, normalizeCatalog } from './DefinitionsPage';
 
 describe('normalizeCatalog', () => {
   it('turns null Go slices into render-safe arrays', () => {
@@ -19,4 +19,12 @@ describe('normalizeCatalog', () => {
     expect(catalog.plugins).toEqual([]);
     expect(Object.values(catalog.coverage).every(section => section.unresolved.length === 0)).toBe(true);
   });
+});
+
+it('selects resource-bearing components without component-specific rules', () => {
+  const components = componentsWithResources([
+    { id: 'plain', kind: 'service', state: 'ready', contractVersion: 1, restartCount: 0 },
+    { id: 'provider', kind: 'plugin', state: 'degraded', contractVersion: 1, restartCount: 0, resources: [{ id: 'api', kind: 'service', name: 'API', description: 'Supplies data.', state: 'degraded' }] },
+  ]);
+  expect(components.map(component => component.id)).toEqual(['provider']);
 });
