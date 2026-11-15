@@ -67,7 +67,11 @@ export default function CapabilityPage({ kind }: { kind: Kind }) {
 
 function LibraryWorkspace({ entity, itemID }: { entity: Entity; itemID: string }) {
   const navigate = useNavigate();
-  return itemID ? <MediaItemWorkspace entity={entity} itemID={itemID} onBack={() => navigate(capabilityPath('libraries', entity.data.plugin, entity.key))} /> : <CatalogWorkspace entity={entity} />;
+  const [searchParams] = useSearchParams();
+  const parentItem = searchParams.get('parent') ?? '';
+  if (!itemID) return <CatalogWorkspace entity={entity} />;
+  const backPath = parentItem ? catalogItemPath(entity.data.plugin, entity.key, parentItem) : capabilityPath('libraries', entity.data.plugin, entity.key);
+  return <MediaItemWorkspace entity={entity} itemID={itemID} backLabel={parentItem ? 'Back to show' : `Back to ${entity.data.name}`} onBack={() => navigate(backPath)} onSelect={(childID, showID) => navigate(`${catalogItemPath(entity.data.plugin, entity.key, childID)}?parent=${encodeURIComponent(showID)}`)} />;
 }
 
 function CatalogWorkspace({ entity }: { entity: Entity }) {
@@ -106,23 +110,36 @@ function CatalogWorkspace({ entity }: { entity: Entity }) {
   </div>;
 }
 
-function MediaItemWorkspace({ entity, itemID, onBack }: { entity: Entity; itemID: string; onBack: () => void }) {
+function MediaItemWorkspace({ entity, itemID, backLabel, onBack, onSelect }: { entity: Entity; itemID: string; backLabel: string; onBack: () => void; onSelect: (childID: string, parentID: string) => void }) {
   const [item, setItem] = useState<CatalogItem | null>(null);
   const [artwork, setArtwork] = useState('');
   const [error, setError] = useState('');
+  const [children, setChildren] = useState<CatalogPage | null>(null);
+  const [childrenBusy, setChildrenBusy] = useState(false);
+  const [childrenError, setChildrenError] = useState('');
   const state = entity.data.state ?? {};
   const provider = entity.data.plugin;
   const server = String(state.serverID || '');
   const library = String(state.libraryID || '');
+  const loadChildren = async (parentID: string, cursor = '', signal?: AbortSignal) => {
+    setChildrenBusy(true); setChildrenError('');
+    try {
+      const next = normalizeCatalogPage(await coreGet<CatalogPage | { items: CatalogItem[] | null; total?: number; nextCursor?: string; error?: string }>(childCatalogPath(provider, server, library, parentID, cursor), signal));
+      if (next.error) throw new Error(next.error);
+      setChildren(current => cursor && current ? { ...next, items: [...current.items, ...next.items] } : next);
+    } catch (cause) { if (!(cause instanceof DOMException && cause.name === 'AbortError')) setChildrenError(cause instanceof Error ? cause.message : 'Episodes failed to load'); }
+    finally { setChildrenBusy(false); }
+  };
   useEffect(() => {
-    const controller = new AbortController(); setItem(null); setArtwork(''); setError('');
+    const controller = new AbortController(); setItem(null); setArtwork(''); setError(''); setChildren(null); setChildrenError('');
     coreGet<CatalogItem>(`/media/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(library)}/items/${encodeURIComponent(itemID)}`, controller.signal).then(next => {
       setItem(next);
       if ((next.assets ?? []).some(asset => asset.kind === 'thumbnail')) coreGet<Artwork>(`/media/artwork/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(itemID)}/thumb`, controller.signal).then(art => setArtwork(`data:${art.contentType};base64,${art.data}`)).catch(() => undefined);
+      if (next.kind === 'show') void loadChildren(next.ref.itemID, '', controller.signal);
     }).catch(cause => { if (cause.name !== 'AbortError') setError(cause instanceof Error ? cause.message : 'Media item failed to load'); });
     return () => controller.abort();
   }, [provider, server, library, itemID]);
-  return <div className="media-workspace"><button className="workspace-back" onClick={onBack}><ChevronLeft className="h-4 w-4" />Back to {entity.data.name}</button>{error && <p className="media-error"><AlertTriangle className="h-4 w-4" />{error}</p>}{!item && !error && <WorkspaceEmpty icon={Clapperboard} text="Loading media details…" />}{item && <article className="media-item-detail">{artwork ? <img src={artwork} alt="" /> : <div className="media-artwork-placeholder"><Image className="h-10 w-10" /></div>}<div className="min-w-0"><p className="section-kicker">{item.kind}</p><h1>{item.title}</h1><p className="media-item-facts">{item.playable ? 'Playable' : 'Not playable'}{item.durationMS ? ` · ${formatDuration(item.durationMS)}` : ''}</p>{description(item) && <p className="media-item-description">{description(item)}</p>}<Metadata metadata={item.metadata} /></div></article>}</div>;
+  return <div className="media-workspace"><button className="workspace-back" onClick={onBack}><ChevronLeft className="h-4 w-4" />{backLabel}</button>{error && <p className="media-error"><AlertTriangle className="h-4 w-4" />{error}</p>}{!item && !error && <WorkspaceEmpty icon={Clapperboard} text="Loading media details…" />}{item && <><article className="media-item-detail">{artwork ? <img src={artwork} alt="" /> : <div className="media-artwork-placeholder"><Image className="h-10 w-10" /></div>}<div className="min-w-0"><p className="section-kicker">{item.kind}</p><h1>{item.title}</h1><p className="media-item-facts">{item.playable ? 'Playable' : 'Not playable'}{item.durationMS ? ` · ${formatDuration(item.durationMS)}` : ''}</p>{description(item) && <p className="media-item-description">{description(item)}</p>}<Metadata metadata={item.metadata} /></div></article>{item.kind === 'show' && <section className="mt-6"><header className="entity-section-header"><div><p className="section-kicker">Series contents</p><h2>Episodes</h2></div><span className="count-badge">{children?.total ?? children?.items.length ?? 0}</span></header>{childrenError && <p className="media-error"><AlertTriangle className="h-4 w-4" />{childrenError}</p>}{children ? <><div className="catalog-results media-catalog-results">{sortEpisodes(children.items).map(episode => <button key={episode.ref.itemID} onClick={() => onSelect(episode.ref.itemID, item.ref.itemID)} className="catalog-item catalog-item-button"><span className="catalog-item-icon"><Play className="h-4 w-4" /></span><span className="min-w-0 flex-1 text-left"><strong>{episode.title}</strong><small>{episodeNumber(episode)}{episode.durationMS ? ` · ${formatDuration(episode.durationMS)}` : ''}</small><span>{description(episode)}</span></span></button>)}{children.items.length === 0 && <p className="p-8 text-center text-sm text-slate-500">No episodes found.</p>}</div>{children.nextCursor && <button disabled={childrenBusy} onClick={() => void loadChildren(item.ref.itemID, children.nextCursor)} className="secondary-button mt-4 w-full">{childrenBusy ? 'Loading…' : 'Load more episodes'}</button>}</> : !childrenError && <WorkspaceEmpty icon={Clapperboard} text="Loading episodes…" />}</section>}</>}</div>;
 }
 
 function EntityWorkspace({ entity }: { entity: Entity }) { return <div className="media-workspace"><div className="media-entity-detail"><EntityCard entityKey={entity.key} /></div></div>; }
@@ -140,6 +157,9 @@ function entitySummary(entity: Entity) { const state = entity.data.state ?? {}; 
 function description(item: CatalogItem) { return typeof item.metadata?.description === 'string' ? item.metadata.description : ''; }
 function metadataSummary(metadata?: Record<string, unknown>) { if (!metadata) return ''; return Object.entries(metadata).filter(([key, value]) => key !== 'description' && value !== null && typeof value !== 'object').slice(0, 3).map(([key, value]) => `${key}: ${String(value)}`).join(' · '); }
 function formatDuration(ms: number) { const minutes = Math.round(ms / 60000); return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`; }
+function episodeNumber(item: CatalogItem) { const season = Number(item.metadata?.season || 0); const episode = Number(item.metadata?.episode || 0); return season || episode ? `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}` : 'Episode'; }
+function sortEpisodes(items: CatalogItem[]) { return [...items].sort((a, b) => Number(a.metadata?.season || 0) - Number(b.metadata?.season || 0) || Number(a.metadata?.episode || 0) - Number(b.metadata?.episode || 0) || a.title.localeCompare(b.title)); }
 export function normalizeCatalogPage(page: CatalogPage | { items: CatalogItem[] | null; total?: number; nextCursor?: string; error?: string }): CatalogPage { return { ...page, items: Array.isArray(page.items) ? page.items : [] }; }
 export function capabilityPath(kind: Kind, provider?: string, entity?: string) { return `/${kind}${provider ? `/${encodeURIComponent(provider)}` : ''}${entity ? `/${encodeURIComponent(entity)}` : ''}`; }
 export function catalogItemPath(provider: string, entity: string, item: string) { return `${capabilityPath('libraries', provider, entity)}/items/${encodeURIComponent(item)}`; }
+export function childCatalogPath(provider: string, server: string, library: string, parentID: string, cursor = '') { const params = new URLSearchParams({ parentID, kind: 'episode', limit: '200' }); if (cursor) params.set('cursor', cursor); return `/media/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(library)}?${params}`; }
