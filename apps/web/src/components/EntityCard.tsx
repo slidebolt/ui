@@ -12,12 +12,13 @@ export function EntityCard({ entityKey, variant = 'card' }: Props) {
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const player = useEntity(typeof entity?.data.state?.playerID === 'string' ? entity.data.state.playerID : '');
   if (!entity) return null;
 
   const { data } = entity;
   const commands = data.commands ?? [];
   const state = data.state ?? {};
-  const summary = stateSummary(data.type, state);
+  const summary = stateSummary(data.type, state, player?.data.name);
   const stale = isStale(data.status);
 
   const run = async (command: string, args: Record<string, unknown> = {}) => {
@@ -135,12 +136,15 @@ export function buildArgs(fields: CommandField[], values: Record<string, string 
   return args;
 }
 
-function stateSummary(type: string, state: Record<string, unknown>): { primary: string; secondary?: string } {
+function stateSummary(type: string, state: Record<string, unknown>, playerName?: string): { primary: string; secondary?: string } {
   const program = state.currentProgram as Record<string, unknown> | undefined;
   if (type === 'tv_channel') return { primary: `${state.number ?? ''} ${state.name ?? ''}`.trim() || 'Channel', secondary: program ? `${program.title ?? 'Unknown program'}${program.episodeTitle ? ` — ${program.episodeTitle}` : ''}` : String(state.guideError || 'No current guide data') };
   if (type === 'media_library') return { primary: String(state.kind ?? 'mixed'), secondary: `${state.itemCount ?? 'Unknown'} items${state.lastError ? ` · ${state.lastError}` : ''}` };
   if (type === 'recorder') return { primary: String(state.status ?? 'idle'), secondary: String((state.output as Record<string, unknown> | undefined)?.itemID ?? state.lastError ?? '') || undefined };
   if (type === 'schedule') return { primary: state.enabled ? 'Enabled' : 'Disabled', secondary: `${Array.isArray(state.steps) ? state.steps.length : 0} actions` };
+  if (type === 'recording_rule') { const query = state.query as Record<string, unknown> | undefined; return { primary: String(query?.title ?? 'Recording rule'), secondary: `${state.enabled ? 'Enabled' : 'Disabled'} · ${state.selection === 'all' ? 'All matches' : 'One match'}` }; }
+  if (type === 'media_session') return { primary: String(state.title ?? 'Active media'), secondary: `${String(state.state ?? 'unknown')}${playerName ? ` on ${playerName}` : ''}` };
+  if (type === 'media_player') return { primary: String(state.state ?? 'idle'), secondary: String(state.mediaTitle ?? (state.available === false ? 'Unavailable' : 'Ready')) };
   if (type === 'media_provider_connection') return { primary: String(state.status ?? 'unknown'), secondary: String(state.lastError ?? state.claimURL ?? '') || undefined };
   for (const key of ['power','state','value','status','position','temperature','available','connected']) if (state[key] !== undefined) return { primary: formatValue(state[key]), secondary: state.lastError ? String(state.lastError) : undefined };
   const keys = Object.keys(state);

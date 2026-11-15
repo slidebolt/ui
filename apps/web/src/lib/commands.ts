@@ -39,7 +39,7 @@ export const COMMANDS: Record<string, CommandDefinition> = {
   record_start: { label: 'Start recording', fields: [{ name: 'source', label: 'Playable source', kind: 'json' }, text('profile', 'Encoding profile', true), text('destination', 'Destination', true), { name: 'metadata', label: 'Metadata', kind: 'json', optional: true }] },
   record_stop: { label: 'Stop recording', risky: true }, record_cancel: { label: 'Cancel recording', fields: [text('reference', 'Reference', true)], risky: true },
   recording_rule_create: { label: 'Create recording rule', fields: [{ name: '$raw', label: 'Recording rule', kind: 'json' }] },
-  recording_rule_delete: { label: 'Delete recording rule', fields: [text('reference', 'Rule reference')], risky: true },
+  recording_rule_delete: { label: 'Delete recording rule', risky: true },
   media_provider_connect: { label: 'Connect' }, media_provider_disconnect: { label: 'Disconnect', risky: true }, media_play: { label: 'Play', fields: [{ name: 'source', label: 'Playable source', kind: 'json' }, number('positionMS', 'Position (ms)', 0)] },
   pbx_reload: { label: 'Reload PBX', risky: true },
   sip_call: { label: 'Start call', fields: [text('call', 'Call'), text('target', 'Target', true), number('ring_seconds', 'Ring seconds', 0)] },
