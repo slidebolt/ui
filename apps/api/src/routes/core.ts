@@ -77,6 +77,16 @@ export async function coreRoutes(fastify: FastifyInstance, _options: FastifyPlug
     return safeJson(await coreRequest(path), reply);
   });
 
+  fastify.get('/core/media/catalog/:provider/:server/:library/items/:item', async (req, reply) => {
+    const { provider, server, library, item } = req.params as Record<string, string>;
+    return safeJson(await coreRequest(mediaItemPath(provider, server, library, item)), reply);
+  });
+
+  fastify.get('/core/media/artwork/:provider/:server/:item/:kind', async (req, reply) => {
+    const { provider, server, item, kind } = req.params as Record<string, string>;
+    return safeJson(await coreRequest(mediaArtworkPath(provider, server, item, kind)), reply);
+  });
+
   fastify.get('/core/tv/guide/:provider/:server', async (req, reply) => {
     const { provider, server } = req.params as Record<string, string>;
     const query = new URLSearchParams(req.query as Record<string, string>).toString();
@@ -136,4 +146,12 @@ export async function coreRoutes(fastify: FastifyInstance, _options: FastifyPlug
     const res = await coreRequest('/tokens');
     return safeJson(res, reply);
   });
+}
+
+export function mediaItemPath(provider: string, server: string, library: string, item: string): string {
+  return `/media/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(library)}/items/${encodeURIComponent(item)}`;
+}
+
+export function mediaArtworkPath(provider: string, server: string, item: string, kind: string): string {
+  return `/media/artwork/${encodeURIComponent(provider)}/${encodeURIComponent(server)}/${encodeURIComponent(item)}/${encodeURIComponent(kind)}`;
 }
