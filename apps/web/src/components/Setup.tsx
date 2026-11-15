@@ -66,7 +66,7 @@ export function Setup({ coreApiUrl, onConnected }: SetupProps) {
         </div>
 
         <p className="text-center text-xs text-slate-500">
-          This will create a new stateful token with full access scopes.
+          This will create a new administrative token with access to every security group.
         </p>
       </div>
     </main>

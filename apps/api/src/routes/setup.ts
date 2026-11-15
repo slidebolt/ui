@@ -45,7 +45,8 @@ export async function setupRoutes(fastify: FastifyInstance, options: FastifyPlug
         },
         body: JSON.stringify({
           name: 'SlideBolt UI',
-          scopes: ['read', 'write', 'control', 'admin'],
+          access: 'admin',
+          securityGroups: ['*'],
         }),
       });
 
@@ -59,7 +60,8 @@ export async function setupRoutes(fastify: FastifyInstance, options: FastifyPlug
       const tokenData = await response.json() as {
         id: string;
         name: string;
-        scopes: string[];
+        access: 'admin';
+        securityGroups: string[];
         token: string;
         createdAt: string;
       };
@@ -68,7 +70,7 @@ export async function setupRoutes(fastify: FastifyInstance, options: FastifyPlug
       await db.insert(tokens).values({
         id: tokenData.id,
         name: tokenData.name,
-        scopes: tokenData.scopes,
+        scopes: [tokenData.access],
         token: tokenData.token,
         createdAt: new Date(tokenData.createdAt),
       });
