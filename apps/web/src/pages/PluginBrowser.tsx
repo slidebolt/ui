@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, Boxes, ChevronLeft, Cpu, Puzzle, Search, Server } from 'lucide-react';
+import { AlertTriangle, Boxes, ChevronLeft, Cpu, PlugZap, Puzzle, Search, Server } from 'lucide-react';
 import { EntityCard } from '../components/EntityCard';
-import { coreGetArray, type ComponentStatus, type DeviceEntry, isStale } from '../lib/core';
+import { coreGetArray, type ComponentStatus, type DeviceEntry, type ExternalResourceStatus, isStale } from '../lib/core';
 import { buildPluginInventory, entitiesForDevice, groupEntities } from '../lib/inventory';
 import { useEntities } from '../store/entityStore';
 
@@ -71,6 +71,7 @@ export default function PluginBrowser() {
     <aside className="browser-pane device-pane">
       <button className="mobile-back" onClick={() => navigate('/devices')}><ChevronLeft className="h-4 w-4" />Plugins</button>
       <PaneHeader icon={Server} title={cleanPluginName(selectedPlugin.id)} count={selectedPlugin.devices.length} subtitle="Devices" />
+      <ResourceList resources={selectedPlugin.runtime?.resources ?? []} />
       <SearchBox value={searchParams.get('devices') ?? ''} onChange={value => setQuery('devices', value)} placeholder="Find a device" />
       <div className="pane-scroll">{visibleDevices.map(device => {
         const count = entitiesForDevice(selectedPlugin.entities, device).filter(entity => !isCapabilityEntity(entity.data.type)).length;
@@ -90,6 +91,17 @@ export default function PluginBrowser() {
       </> : <div className="workspace-empty"><Server className="h-8 w-8" /><p>This plugin has no devices.</p></div>}
     </main>
   </div>;
+}
+
+function ResourceList({ resources }: { resources: ExternalResourceStatus[] }) {
+  if (resources.length === 0) return null;
+  return <section className="resource-list" aria-label="External resources">
+    <header><span><PlugZap className="h-3.5 w-3.5" />External resources</span><span className="count-badge">{resources.length}</span></header>
+    {resources.map(resource => <div className="resource-row" key={resource.id} title={resource.description}>
+      <span className="min-w-0 flex-1"><strong>{resource.name}</strong><small>{resource.description}</small>{resource.lastError?.message && <small className="resource-error">{resource.lastError.message}</small>}</span>
+      <RuntimeState value={resource.state} />
+    </div>)}
+  </section>;
 }
 
 function DeviceSummary({ device, entityCount, pluginState }: { device: DeviceEntry; entityCount: number; pluginState?: string }) {

@@ -23,6 +23,17 @@ export type ComponentStatus = {
   readyAt?: string;
   restartCount: number;
   lastError?: string;
+  resources?: ExternalResourceStatus[];
+};
+
+export type ExternalResourceStatus = {
+  id: string;
+  kind: 'service' | 'device' | string;
+  name: string;
+  description: string;
+  state: 'ready' | 'degraded' | 'disabled' | 'starting' | string;
+  lastCheckedAt?: string;
+  lastError?: { code: string; message: string; retryable: boolean };
 };
 
 export type LogEvent = {
