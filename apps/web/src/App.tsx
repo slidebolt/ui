@@ -85,9 +85,18 @@ export default function App() {
         <Route path="/" element={<Layout user={user} onLogout={logout} />}>
           <Route index element={<Navigate to="/live-tv" replace />} />
           <Route path="live-tv" element={<CapabilityPage kind="live-tv" />} />
+          <Route path="live-tv/:provider" element={<CapabilityPage kind="live-tv" />} />
+          <Route path="live-tv/:provider/:entity" element={<CapabilityPage kind="live-tv" />} />
           <Route path="libraries" element={<CapabilityPage kind="libraries" />} />
+          <Route path="libraries/:provider" element={<CapabilityPage kind="libraries" />} />
+          <Route path="libraries/:provider/:entity" element={<CapabilityPage kind="libraries" />} />
+          <Route path="libraries/:provider/:entity/items/:item" element={<CapabilityPage kind="libraries" />} />
           <Route path="recordings" element={<CapabilityPage kind="recordings" />} />
+          <Route path="recordings/:provider" element={<CapabilityPage kind="recordings" />} />
+          <Route path="recordings/:provider/:entity" element={<CapabilityPage kind="recordings" />} />
           <Route path="sessions" element={<CapabilityPage kind="sessions" />} />
+          <Route path="sessions/:provider" element={<CapabilityPage kind="sessions" />} />
+          <Route path="sessions/:provider/:entity" element={<CapabilityPage kind="sessions" />} />
           <Route path="devices" element={<PluginBrowser />} />
           <Route path="definitions" element={<DefinitionsPage />} />
           <Route path="plugins/:plugin" element={<PluginBrowser />} />
