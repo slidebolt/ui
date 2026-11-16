@@ -1,0 +1,18 @@
+import { useEffect, useState } from 'react';
+import { KeyRound, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
+
+type Pairing = { code:string; clientName:string; clientType:string; requestedAccess:'read'|'control'|'admin'; requestedSecurityGroups:string[]; status:string; expiresAt:string };
+type Token = { id:string; name:string; access:string; securityGroups:string[]; createdAt:string; lastUsedAt?:string };
+
+export default function ClientsPage() {
+  const [code,setCode]=useState(''); const [pairing,setPairing]=useState<Pairing|null>(null); const [tokens,setTokens]=useState<Token[]>([]); const [error,setError]=useState(''); const [busy,setBusy]=useState(false);
+  const loadTokens=async()=>{const r=await fetch('/api/core/tokens');if(r.ok)setTokens(await r.json())};
+  useEffect(()=>{void loadTokens()},[]);
+  const lookup=async()=>{setBusy(true);setError('');const normalized=code.trim().toUpperCase();const r=await fetch(`/api/core/pairing/${encodeURIComponent(normalized)}`);if(r.ok)setPairing(await r.json());else{setPairing(null);setError('Pairing code was not found or has expired.')}setBusy(false)};
+  const decide=async(approved:boolean)=>{if(!pairing)return;setBusy(true);const path=approved?'approve':'reject';const r=await fetch(`/api/core/pairing/${encodeURIComponent(pairing.code)}/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:approved?JSON.stringify({access:'control',securityGroups:['*']}):'{}'});if(r.ok){setPairing(await r.json());void loadTokens()}else setError('Unable to update pairing request.');setBusy(false)};
+  const revoke=async(id:string)=>{await fetch(`/api/core/tokens/${encodeURIComponent(id)}`,{method:'DELETE'});void loadTokens()};
+  return <main className="clients-page"><section className="clients-hero"><span className="summary-icon"><KeyRound/></span><div><p className="section-kicker">Client access</p><h1>Pair apps and manage tokens</h1><p>Enter the code displayed by an Android or other SlideBolt client.</p></div></section>
+    <section className="clients-card"><h2>Pair a client</h2><div className="pairing-entry"><input className="field-input" value={code} onChange={e=>setCode(e.target.value)} placeholder="ABCD-EFGH" maxLength={9}/><button className="primary-button" disabled={busy||code.trim().length<8} onClick={lookup}>{busy?<RefreshCw className="h-4 w-4 animate-spin"/>:'Find client'}</button></div>{error&&<p className="media-error">{error}</p>}
+    {pairing&&<article className="pairing-result"><ShieldCheck/><div><strong>{pairing.clientName}</strong><p>{pairing.clientType||'Client'} · requests {pairing.requestedAccess} · {pairing.requestedSecurityGroups.join(', ')}</p><small>Expires {new Date(pairing.expiresAt).toLocaleString()}</small></div><div className="pairing-actions"><button className="secondary-button" disabled={busy} onClick={()=>decide(false)}>Reject</button><button className="primary-button" disabled={busy||pairing.status!=='pending'} onClick={()=>decide(true)}>Approve control</button></div></article>}</section>
+    <section className="clients-card"><div className="clients-section-title"><h2>Authorized clients</h2><button className="icon-button" onClick={loadTokens}><RefreshCw className="h-4 w-4"/></button></div><div className="token-list">{tokens.map(token=><article key={token.id}><div><strong>{token.name}</strong><p>{token.access} · {token.securityGroups.join(', ')}</p><small>{token.lastUsedAt?`Last used ${new Date(token.lastUsedAt).toLocaleString()}`:'Never used'}</small></div><button className="icon-button" title="Revoke" onClick={()=>revoke(token.id)}><Trash2 className="h-4 w-4"/></button></article>)}</div></section></main>;
+}

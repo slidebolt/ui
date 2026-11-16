@@ -146,6 +146,26 @@ export async function coreRoutes(fastify: FastifyInstance, _options: FastifyPlug
     const res = await coreRequest('/tokens');
     return safeJson(res, reply);
   });
+
+  fastify.delete('/core/tokens/:id', async (req, reply) => {
+    const { id } = req.params as { id: string };
+    return safeJson(await coreRequest(`/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' }), reply);
+  });
+
+  fastify.get('/core/pairing/:code', async (req, reply) => {
+    const { code } = req.params as { code: string };
+    return safeJson(await coreRequest(`/pairing/requests/${encodeURIComponent(code)}`), reply);
+  });
+
+  fastify.post('/core/pairing/:code/approve', async (req, reply) => {
+    const { code } = req.params as { code: string };
+    return safeJson(await coreRequest(`/pairing/requests/${encodeURIComponent(code)}/approve`, { method: 'POST', body: JSON.stringify(req.body) }), reply);
+  });
+
+  fastify.post('/core/pairing/:code/reject', async (req, reply) => {
+    const { code } = req.params as { code: string };
+    return safeJson(await coreRequest(`/pairing/requests/${encodeURIComponent(code)}/reject`, { method: 'POST', body: '{}' }), reply);
+  });
 }
 
 export function mediaItemPath(provider: string, server: string, library: string, item: string): string {
