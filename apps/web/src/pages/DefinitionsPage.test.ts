@@ -4,7 +4,7 @@ import { componentsWithResources, normalizeCatalog } from './DefinitionsPage';
 describe('normalizeCatalog', () => {
   it('turns null Go slices into render-safe arrays', () => {
     const catalog = normalizeCatalog({
-      schemaVersion: 1,
+      schemaVersion: 2,
       domain: { deviceSchema: {}, entityTypes: null, commands: null },
       plugins: null,
       coverage: {

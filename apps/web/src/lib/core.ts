@@ -4,6 +4,7 @@ export type DeviceData = {
   id: string;
   name: string;
   plugin: string;
+  securityGroups?: string[];
   labels?: Record<string, string[]>;
   profile?: Record<string, unknown>;
   meta?: Record<string, unknown>;
